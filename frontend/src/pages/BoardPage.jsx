@@ -5,6 +5,7 @@ import ItemCard from '../components/ItemCard'
 import ItemSheet from '../components/ItemSheet'
 import ProgressBar from '../components/ProgressBar'
 import Sheet from '../components/Sheet'
+import ProjectAccess from '../components/ProjectAccess'
 import { api } from '../lib/api'
 import { money, shortDate, timeAgo } from '../lib/format'
 
@@ -157,6 +158,7 @@ export default function BoardPage({ boardId, onBack, onChanged }) {
         </button>
       </header>
 
+      <ProjectAccess boardId={boardId} />
       <div className="px-4 pt-4">
         <div className="rounded-2xl bg-maroon p-4 text-white shadow-lift">
           <p className="text-[11.5px] leading-snug text-white/75">{board.address || 'No job address on file'}</p>

@@ -1,76 +1,141 @@
-# talley_app
+# A E Talley Construction — estimating & field workspace
 
-A.E. Talley Construction field board — a Monday.com-style job tracker built
-mobile-first, so the same codebase runs in the browser today, in Bluestacks as an
-Android app, and as an iPhone app once it is wrapped.
+Built by Cozy Digital. A single-company, **local synthetic-data demo** that extends
+the existing React/Vite/Tailwind + FastAPI/SQLite field board.
 
-Built around the A.E. Talley logo and palette: burgundy `#6D2431`, steel grey
-`#808080`, warm sand surfaces and white.
+Start with **Jobs**: customer → job → estimate → recorded approval → project →
+assigned tasks → field status update. The Projects, Crew and Overview screens from
+the original app remain available to administrators.
 
-## What it does
+## Run locally on Windows
 
-- **Projects** — every active job with contract value, completion and a blocked
-  count, searchable by job, owner or street.
-- **Board** — per-job scopes (Pre-Construction, Site & Foundation, MEP Rough-In…)
-  with task cards showing status, owner, due date and committed cost. Tap a card
-  to edit it, or add tasks directly to a scope.
-- **Crew** — who is on the job, their role, phone number and open/blocked load.
-- **Overview** — portfolio contract value, committed cost, workflow breakdown and
-  what is due in the next ten days.
-- Each board keeps a running activity log (task added, moved to blocked, removed).
+Requirements: Python 3.12+, Node 22+ and npm. These commands run from the repository root.
+If Python is managed by uv, use `uv venv --python 3.12 .venv` instead of the first command.
+For a uv-created environment without pip, install with
+`uv pip install --python .venv/Scripts/python.exe -r backend/requirements-dev.txt`.
 
-## Layout
+```powershell
+python -m venv .venv
+.venv/Scripts/python.exe -m pip install -r backend/requirements-dev.txt
+npm --prefix frontend ci
 
-```
-backend/            FastAPI + SQLite API (seeded with real-looking jobs)
-  app/db.py         schema + demo data
-  app/main.py       REST endpoints under /api
-frontend/           React + Vite + Tailwind mobile app
-  src/pages/        Projects, Board, Crew, Overview
-  src/components/   sheets, cards, pills, nav, logo
-  capacitor.config.ts  native shell config for iOS/Android
+# Choose a local demo password of at least 12 characters; do not commit it.
+$env:TALLEY_DEMO_PASSWORD = Read-Host 'Local demo password'
+$env:DEMO_MODE = '1'
+$env:COOKIE_SECURE = '0'  # local HTTP only; secure cookies are the default
+Set-Location backend
+../.venv/Scripts/python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-## Run it
+In a second terminal, from the repository root:
 
-Compose is managed outside this repository by the Base44 environment
-(`docker compose --project-name app ... up -d`). Locally, with the two services
-defined there:
-
-- web app: <http://localhost:3000> (Vite dev server, hot reload, proxies `/api`)
-- API: <http://localhost:8000/api/health> and docs at `/docs`
-- SQLite data lives in the `api_data` volume at `/data/talley.db`
-
-The board seeds itself on first boot, so a fresh database is never empty.
-
-## Putting it on a phone
-
-The frontend already has the Capacitor shell configured (`appId
-com.aetalley.fieldboard`). The native apps talk to a deployed API, so build the
-web bundle with the API URL baked in:
-
-```bash
-cd frontend
-VITE_API_URL=https://your-api-host npm run build
-
-# Android (works with Bluestacks)
-npx cap add android
-npx cap sync android
-npx cap open android        # build the APK in Android Studio, then drag it onto Bluestacks
-
-# iOS (needs a Mac with Xcode and an Apple developer account)
-npx cap add ios
-npx cap sync ios
-npx cap open ios            # set the signing team, then run on a device
+```powershell
+npm --prefix frontend run dev -- --host 127.0.0.1
 ```
 
-Before shipping to the App Store, replace `public/icon.svg` with the exported
-1024×1024 PNG icon and add the splash screen (`@capacitor/assets`).
+Open **http://127.0.0.1:5173**. Demo usernames:
 
-## Notes
+- `admin.demo` — customer/job/estimate/project administration and financial data.
+- `worker.demo` — assigned projects; status and notes on tasks owned by this worker.
+- `other.demo` — second worker to demonstrate isolation.
 
-- `BASE44_PREVIEW_MODE=1` is only used to add the sandbox host to Vite's allowed
-  hosts and to enable the file watcher in a container; unset, Vite behaves
-  normally.
-- Statuses are fixed (Not Started, In Progress, Blocked, Review, Done) so that
-  the field crews see the same five colours on every job.
+All three use the password supplied on **first seed**. Restarting with a different
+environment value does not overwrite existing password hashes. No accounts are
+created unless `DEMO_MODE=1`; no passwords are stored in source or plaintext in SQLite.
+The demo password is shared only to simplify this local demonstration. Production
+identity provisioning/reset/MFA are not implemented.
+
+On macOS/Linux, use `.venv/bin/python`, export the same environment variables and
+otherwise run the same Python/npm commands.
+
+## Add the sample job
+
+With the backend running, set `TALLEY_DEMO_PASSWORD` to the same value in another
+terminal and run:
+
+```powershell
+.venv/Scripts/python.exe scripts/seed_demo.py
+```
+
+The script creates **Demo · South Philadelphia kitchen refresh** and a saved draft.
+It skips that named job on repeat. All names, addresses and rates are synthetic.
+See [Anthony's demo walkthrough](docs/DEMO.md).
+
+## Persistence, migrations and security
+
+- SQLite defaults to `backend/data/talley.db` when starting from `backend`.
+  Override with an absolute `DATABASE_PATH` to avoid working-directory ambiguity.
+- The original boards/groups/items/team/activity tables are retained.
+  Additive migration `backend/migrations/001_estimating.sql` introduces customers,
+  jobs, estimates, project origins, users, assignments and sessions. Existing
+  board/task data is not replaced. Take a database backup before using a new build
+  with any non-demo data.
+- The old fictional Tennessee mega-project seed is now opt-in via
+  `SEED_LEGACY_DEMO=1`. It is not used by the sample workflow.
+- Passwords use salted scrypt. Random session tokens are stored only as SHA-256
+  hashes on the server; cookies are HttpOnly, SameSite=Lax, eight-hour expiry and
+  Secure by default. Logout revokes the token. Login failures are rate-limited.
+- All legacy cost-bearing endpoints require an administrator. Field endpoints
+  explicitly project allowed fields and recheck current board assignments on
+  every request. A worker cannot change price, assignment, due date or other
+  workers' tasks by calling endpoints directly.
+- Mutations require a custom same-origin header; wildcard CORS was removed.
+  Use the Vite `/api` proxy locally. A future deployment must keep the UI and API
+  on the same origin. The old cross-origin native API configuration is not
+  supported by this session-based browser workflow.
+- Approval is a manually recorded external decision, not an electronic signature.
+  Approved documents include frozen customer/site/scope/pricing, approver,
+  recording administrator, note and timestamp. SQL triggers prevent updates/deletes.
+- Conversion uses a SQLite write transaction and a unique job → project link.
+  Concurrent/repeated requests open the same project. Later approved revisions do
+  not silently replace the existing project budget; change-order reconciliation is deferred.
+
+## Calculation assumptions — confirm with Anthony
+
+USD; quantity up to three decimal places; unit cost and percentages up to two.
+Line cost = quantity × unit cost, rounded half up to cents. Line markup is a
+percentage of that rounded cost, independently rounded half up. Selling price is
+cost + markup. Sum selling prices, then calculate and round tax once on the chosen
+base: none, materials including markup, or all selling prices.
+
+Zero markup/no tax are the neutral defaults. Each estimate stores its own settings.
+The sample uses **20% markup and 6% materials tax solely to exercise calculation**,
+not as approved tax treatment or Anthony's pricing. There is no AI pricing or tax
+determination. Discounts, retainage, multiple tax jurisdictions and change orders
+are not in this version. Totals above $10 billion are rejected to bound numeric precision.
+
+## Checks
+
+```powershell
+Set-Location backend
+../.venv/Scripts/python.exe -m pytest -q
+Set-Location ../frontend
+npm run build
+npx playwright install chromium
+# Both local services must be running with the same demo password.
+$env:TALLEY_DEMO_PASSWORD = Read-Host 'Local demo password'
+npm run test:e2e
+```
+
+Backend tests use an isolated temporary database. Browser tests create clearly
+named synthetic demo jobs in the running database. Run them only on a demo instance.
+Desktop and iPhone-sized Chromium projects are configured. Browser emulation is
+not a physical phone/Safari test. Screenshots and failure traces are ignored local
+artifacts under `frontend/test-artifacts` and `frontend/test-results`.
+
+There were no existing lint/type-check/test scripts on the source branch; its
+existing production build remains the frontend compile check.
+
+## Scope and deployment
+
+No deployment occurred. The source branch referred to a Base44-managed external
+Compose setup; no Docker/hosting/CI configuration was present in the repository.
+Capacitor configuration is retained as historical source, but native packaging is
+outside this browser pass.
+
+No emails, payments, accounting integrations, production AI, phone routing,
+photo-upload system or production launch are added here. The marketing website
+repository is untouched. This pass follows the latest user-requested manual
+estimating workflow; it does not assert that a contract/change order was executed.
+
+See [build evidence and remaining decisions](docs/BUILD-NOTES.md).

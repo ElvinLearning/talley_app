@@ -1,118 +1,58 @@
-import { useCallback, useEffect, useState } from 'react'
-import BottomNav from './components/BottomNav'
+import { useEffect, useState } from 'react'
+import { Building2, ClipboardList, Users, TrendingUp, LogOut } from 'lucide-react'
 import Logo from './components/Logo'
 import BoardPage from './pages/BoardPage'
 import CrewPage from './pages/CrewPage'
 import OverviewPage from './pages/OverviewPage'
 import ProjectsPage from './pages/ProjectsPage'
-import { api } from './lib/api'
+import JobsPage, { send, Field, Alert } from './pages/JobsPage'
+import WorkerPage from './pages/WorkerPage'
+import { api, request } from './lib/api'
+import { DraftContext } from './lib/DraftContext'
 
+function Login({ onLogin }) {
+  const [username,setUsername]=useState('')
+  const [password,setPassword]=useState('')
+  const [error,setError]=useState('')
+  const [busy,setBusy]=useState(false)
+  return <div className="min-h-dvh flex items-center justify-center bg-sand p-5">
+    <form className="card p-7 w-full max-w-md space-y-5" onSubmit={async e=>{e.preventDefault();setBusy(true);setError('');try{onLogin(await send('/auth/login','POST',{username,password}))}catch(e){setError(e.message)}finally{setBusy(false)}}}>
+      <Logo size={56}/><div><p className="eyebrow text-maroon">Built for the work ahead</p><h1 className="font-serif text-3xl mt-2">Sign in to Talley</h1><p className="text-steel text-sm mt-2">Estimating & project workspace · Demo</p></div>
+      <Field label="Username" autoComplete="username" required value={username} onChange={e=>setUsername(e.target.value)}/>
+      <Field label="Password" type="password" autoComplete="current-password" required value={password} onChange={e=>setPassword(e.target.value)}/>
+      <Alert message={error}/><button className="btn-primary w-full" disabled={busy}>{busy?'Signing in…':'Sign in'}</button><p className="text-xs text-steel">A E Talley Construction · Built by Cozy Digital</p>
+    </form>
+  </div>
+}
 export default function App() {
-  const [tab, setTab] = useState('projects')
-  const [boards, setBoards] = useState([])
-  const [boardId, setBoardId] = useState(null)
-  const [status, setStatus] = useState('loading')
-  const [error, setError] = useState('')
-
-  const loadBoards = useCallback(async () => {
-    try {
-      const data = await api.boards()
-      setBoards(data)
-      setBoardId((current) => (data.some((board) => board.id === current) ? current : data[0]?.id ?? null))
-      setStatus('ready')
-    } catch (caught) {
-      setError(caught.message || 'Could not reach the field board service')
-      setStatus('error')
-    }
-  }, [])
-
-  useEffect(() => {
-    loadBoards()
-  }, [loadBoards])
-
-  const openBoard = (id) => {
-    setBoardId(id)
-    setTab('board')
-  }
-
-  const renderBody = () => {
-    if (status === 'loading') {
-      return (
-        <div className="flex h-full flex-col items-center justify-center gap-4 bg-sand px-8 text-center">
-          <Logo size={56} wordmark={false} />
-          <div>
-            <p className="font-serif text-lg text-ink">A.E. Talley</p>
-            <p className="mt-1 text-xs uppercase tracking-[0.18em] text-steel">Field board</p>
-          </div>
-          <div className="mt-2 h-1 w-32 overflow-hidden rounded-full bg-black/10">
-            <div className="h-full w-1/2 animate-pulse rounded-full bg-maroon" />
-          </div>
-        </div>
-      )
-    }
-
-    if (status === 'error') {
-      return (
-        <div className="flex h-full flex-col items-center justify-center gap-3 bg-sand px-8 text-center">
-          <p className="font-serif text-lg text-ink">The board service did not answer</p>
-          <p className="text-xs text-steel">{error}</p>
-          <button
-            type="button"
-            onClick={() => {
-              setStatus('loading')
-              loadBoards()
-            }}
-            className="btn-primary mt-2"
-          >
-            Try again
-          </button>
-        </div>
-      )
-    }
-
-    if (tab === 'board') {
-      if (!boardId) {
-        return (
-          <div className="flex h-full flex-col items-center justify-center gap-2 bg-sand px-8 text-center">
-            <p className="font-serif text-lg text-ink">No projects yet</p>
-            <p className="text-xs text-steel">Create a project to start tracking scopes and punch lists.</p>
-            <button type="button" onClick={() => setTab('projects')} className="btn-primary mt-2">
-              Go to projects
-            </button>
-          </div>
-        )
-      }
-      return (
-        <BoardPage
-          key={boardId}
-          boardId={boardId}
-          onBack={() => setTab('projects')}
-          onOpenBoard={openBoard}
-          onChanged={loadBoards}
-        />
-      )
-    }
-
-    if (tab === 'crew') {
-      return <CrewPage />
-    }
-
-    if (tab === 'overview') {
-      return <OverviewPage onOpenBoard={openBoard} />
-    }
-
-    return <ProjectsPage boards={boards} onOpenBoard={openBoard} onCreated={loadBoards} />
-  }
-
-  return (
-    <div className="flex min-h-dvh w-full items-stretch justify-center bg-[#2A0F14] md:items-center md:p-6">
-      <div
-        id="app-shell"
-        className="relative flex h-dvh w-full flex-col overflow-hidden bg-sand md:h-[calc(100dvh-3rem)] md:max-h-[900px] md:w-[420px] md:rounded-[34px] md:shadow-[0_30px_80px_rgba(0,0,0,0.45)] md:ring-1 md:ring-white/10"
-      >
-        <main className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain">{renderBody()}</main>
-        <BottomNav active={tab} onChange={setTab} boardDisabled={!boardId} />
-      </div>
-    </div>
-  )
+  const [user,setUser]=useState(null)
+  const [loading,setLoading]=useState(true)
+  const [tab,setTab]=useState('jobs')
+  const [boardId,setBoardId]=useState(null)
+  const [boards,setBoards]=useState([])
+  const [error,setError]=useState('')
+  useEffect(()=>{request('/auth/me').then(setUser).catch(()=>{}).finally(()=>setLoading(false))},[])
+  const [dirty,setDirty]=useState(false)
+  const canLeave=()=>!dirty||window.confirm('Leave without saving this estimate?')
+  const loadBoards=async()=>{try{setBoards(await api.boards());setError('')}catch(e){setError(e.message)}}
+  useEffect(()=>{if(user?.role==='admin')loadBoards()},[user])
+  const openBoard=id=>{setBoardId(id);setTab('board');loadBoards()}
+  if(loading)return <p className="p-8 bg-sand min-h-dvh">Opening workspace…</p>
+  if(!user)return <Login onLogin={setUser}/>
+  const tabs=[['jobs','Jobs',ClipboardList],['projects','Projects',Building2],['crew','Crew',Users],['overview','Overview',TrendingUp]]
+  return <DraftContext.Provider value={setDirty}><div id="app-shell" className="relative flex h-dvh flex-col bg-sand overflow-hidden">
+    <header className="app-header flex shrink-0 items-center justify-between gap-3 border-b bg-white px-4 sm:px-8 py-3">
+      <Logo size={38}/><div className="flex items-center gap-3"><span className="text-sm hidden sm:inline">{user.name} · {user.role}</span>
+        <button className="btn-ghost" onClick={async()=>{if(!canLeave())return;try{await send('/auth/logout','POST');setUser(null);setTab('jobs');setBoards([]);setDirty(false)}catch(e){setError(e.message)}}}><LogOut size={16}/><span>Sign out</span></button></div>
+    </header>
+    <div className="demo-banner shrink-0 px-4 sm:px-8 py-2 bg-maroon-tint text-maroon text-xs">Demo workspace · Synthetic records and prices only · No client messages are sent</div>
+    <main className="min-h-0 flex-1 overflow-y-auto">
+      {error&&<div className="p-4"><Alert message={error}/><button className="btn-ghost mt-2" onClick={loadBoards}>Retry</button></div>}
+      {user.role==='worker'?<WorkerPage user={user}/>:tab==='jobs'?<JobsPage onOpenBoard={openBoard}/>:tab==='board'&&boardId?<BoardPage key={boardId} boardId={boardId} onBack={()=>setTab('jobs')} onChanged={loadBoards}/>:
+       tab==='crew'?<CrewPage/>:tab==='overview'?<OverviewPage onOpenBoard={openBoard}/>:<ProjectsPage boards={boards} onOpenBoard={openBoard} onCreated={loadBoards}/>}
+    </main>
+    {user.role==='admin'&&<nav aria-label="Main navigation" className="main-nav bg-white border-t flex shrink-0 justify-around px-3 pb-safe">
+      {tabs.map(([key,label,Icon])=><button key={key} className={'flex flex-1 min-w-0 flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 py-3 min-h-12 '+(tab===key?'text-maroon bg-maroon-tint font-semibold':'text-steel')} onClick={()=>{if(key===tab||canLeave())setTab(key)}} aria-current={tab===key?'page':undefined}><Icon size={19}/><span className="text-xs sm:text-sm">{label}</span></button>)}
+    </nav>}
+  </div></DraftContext.Provider>
 }

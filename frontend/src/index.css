@@ -65,6 +65,28 @@
   animation: fade-in 200ms ease-out;
 }
 
+.workspace { max-width: 1440px; margin: 0 auto; padding: 28px 32px 48px; }
+.section-title { font-size: 1.125rem; font-weight: 600; }
+.status-label { display: inline-block; border-radius: 6px; padding: 5px 10px; background: #f1e6e8; color: #6d2431; font-size: 12px; font-weight: 600; text-transform: capitalize; }
+.job-row { display: grid; grid-template-columns: minmax(0, 1.4fr) 120px minmax(0, 1fr) 20px; gap: 20px; padding: 20px; align-items: center; }
+.estimate-line { display: grid; grid-template-columns: minmax(180px,2fr) minmax(120px,1fr) 90px 90px 120px 160px; gap: 12px; align-items: end; }
+button:focus-visible { outline: 3px solid #6d2431; outline-offset: 3px; }
+@media (max-width:1100px) { .estimate-line { grid-template-columns: repeat(3,minmax(0,1fr)); } }
+@media (max-width:767px) {
+  .workspace { padding: 20px 16px 32px; }
+  .job-row { grid-template-columns: 1fr; gap: 10px; padding: 16px; }
+  .job-row.hidden { display:none; }
+  .estimate-line { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .estimate-line > :first-child { grid-column:1/-1; }
+}
+@media (min-width:768px) { .sheet-panel { width: min(720px,100%); margin:0 auto; } }
+@media print {
+  .app-header,.main-nav,.demo-banner,.no-print { display:none !important; }
+  #app-shell, #root, body, main { height:auto !important; overflow:visible !important; background:white; }
+  .client-preview .card { box-shadow:none; border:0; }
+  .workspace { padding:0; }
+}
+
 @keyframes sheet-in {
   from {
     transform: translateY(18px);

@@ -1,13 +1,15 @@
 const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api'
 
-async function request(path, options = {}) {
+export async function request(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json', 'X-Talley-Request': '1' },
     ...options,
   })
 
   if (!response.ok) {
-    const detail = await response.text().catch(() => '')
+    const data = await response.json().catch(() => ({}))
+    const detail = Array.isArray(data.detail) ? data.detail.map(e => e.msg).join('; ') : data.detail
     throw new Error(detail || `Request failed (${response.status})`)
   }
 
