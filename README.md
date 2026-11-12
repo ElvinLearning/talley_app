@@ -147,3 +147,15 @@ repository is untouched. This pass follows the latest user-requested manual
 estimating workflow; it does not assert that a contract/change order was executed.
 
 See [build evidence and remaining decisions](docs/BUILD-NOTES.md).
+
+
+## Temporary login-free demo
+
+Set `DEMO_MODE=1` and `DEMO_SKIP_LOGIN=1` on the API process to open the
+workspace as the seeded demo administrator without entering credentials.
+This grants visitors administrator access to the demo data. Use only a demo
+instance. Both flags are required; normal authentication remains the default.
+Existing signed-in workers retain their role restrictions. Use **Switch user**
+to sign in as a field worker. Remove `DEMO_SKIP_LOGIN` to restore the login gate.
+GitHub Pages still requires a separately hosted API; this does not add a backend
+or database to static hosting.

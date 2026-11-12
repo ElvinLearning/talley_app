@@ -201,7 +201,7 @@ export default function App() {
   const signOutButton = (
     <button type="button" className="btn-ghost" onClick={signOut}>
       <LogOut size={16} aria-hidden="true" />
-      Sign out
+      {user.demo_access ? 'Switch user' : 'Sign out'}
     </button>
   )
 

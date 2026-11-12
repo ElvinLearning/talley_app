@@ -247,3 +247,18 @@ def test_saved_date_is_frozen_with_the_approved_revision(client):
     done=client.post(f"/api/estimates/{e['id']}/approve",json={"version":e["version"],"approved_by":"C","note":"Demo"}).json()
     assert done["document"]["saved_at"] == stamp
     assert client.get(f"/api/estimates/{e['id']}/preview").json()["prepared_at"] == stamp
+
+
+def test_skip_login_requires_demo_mode_and_preserves_worker_role(client, monkeypatch):
+    client.cookies.clear()
+    assert client.get('/api/auth/me').status_code == 401
+    monkeypatch.setenv('DEMO_SKIP_LOGIN', '1')
+    assert client.get('/api/auth/me').json()['demo_access'] is True
+    assert client.get('/api/jobs').status_code == 200
+    login(client, 'worker.demo')
+    assert client.get('/api/auth/me').json()['role'] == 'worker'
+    assert client.get('/api/jobs').status_code == 403
+    client.cookies.clear()
+    monkeypatch.setenv('DEMO_MODE', '0')
+    assert client.get('/api/auth/me').status_code == 401
+    assert client.get('/api/jobs').status_code == 401

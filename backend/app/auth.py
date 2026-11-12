@@ -27,6 +27,12 @@ def current_user(request: Request):
         row = conn.execute("""SELECT u.id,u.username,u.name,u.role,u.team_id FROM sessions s
           JOIN users u ON u.id=s.user_id WHERE token_hash=? AND expires_at>?""",
           (hashlib.sha256(token.encode()).hexdigest(), int(time.time()))).fetchone()
+    # Explicit demo-only access; real sessions retain their assigned role.
+    if not row and os.environ.get("DEMO_MODE") == "1" and os.environ.get("DEMO_SKIP_LOGIN") == "1":
+        with closing(connect()) as conn:
+            row = conn.execute("SELECT id,username,name,role,team_id FROM users WHERE username='admin.demo' AND role='admin'").fetchone()
+        if row:
+            return {**dict(row), "demo_access": True}
     if not row:
         raise HTTPException(401, "Sign in to continue")
     return dict(row)
