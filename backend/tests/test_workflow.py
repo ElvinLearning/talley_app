@@ -265,3 +265,56 @@ def test_skip_login_requires_demo_mode_and_preserves_worker_role(client, monkeyp
     monkeypatch.setenv('DEMO_MODE', '0')
     assert client.get('/api/auth/me').status_code == 401
     assert client.get('/api/jobs').status_code == 401
+
+
+def test_evidence_is_sourced_filterable_and_admin_only(client):
+    j, e = saved(client)
+    assert client.get('/api/assistant/evidence').json()['results'] == []
+    evidence = client.get('/api/assistant/evidence?q=tile&approved_only=false').json()
+    assert evidence['generated'] is False and evidence['total_matches'] == 1
+    source = evidence['results'][0]
+    assert source['unit_cost'] == '3.25'
+    assert source['estimate_id'] == e['id'] and source['job_id'] == j['id']
+    assert source['estimate_version'] == e['version'] and source['state'] == 'draft'
+    assert client.get('/api/assistant/evidence?q=unmatched&approved_only=false').json()['results'] == []
+    client.post(f"/api/estimates/{e['id']}/approve", json={'version': e['version'], 'approved_by': 'Demo', 'note': 'Test'})
+    assert client.get('/api/assistant/evidence?q=TILE').json()['results'][0]['state'] == 'approved'
+    assert client.get('/api/assistant/evidence', params={'q': 'a' * 201}).status_code == 422
+    login(client, 'worker.demo')
+    for path in ['/api/assistant/evidence', '/api/integrations', '/api/integrations/events']:
+        assert client.get(path).status_code == 403
+    client.cookies.clear()
+    assert client.get('/api/assistant/evidence').status_code == 401
+
+
+def test_integration_events_are_durable_ordered_and_idempotent(client):
+    j, e = approved(client)
+    for _ in range(3):
+        client.post(f"/api/estimates/{e['id']}/approve", json={'version': 2, 'approved_by': 'Demo', 'note': 'Retry'})
+        client.post(f"/api/estimates/{e['id']}/convert")
+    first = client.get('/api/integrations/events?limit=1').json()
+    assert first['has_more'] is True
+    assert first['items'][0]['event_type'] == 'estimate.approved'
+    second = client.get('/api/integrations/events', params={'after': first['next_cursor']}).json()
+    assert len(second['items']) == 1 and second['has_more'] is False
+    assert second['items'][0]['event_type'] == 'project.created'
+    assert second['items'][0]['payload']['job_id'] == j['id']
+    from app.bootstrap import initialize
+    initialize()
+    assert len(client.get('/api/integrations/events').json()['items']) == 2
+    status = client.get('/api/integrations').json()
+    assert status['recorded_events'] == 2 and status['external_delivery_enabled'] is False
+    assert all(item['status'] == 'not_connected' for item in status['connections'])
+    assert client.get('/api/integrations/events?after=-1').status_code == 422
+
+
+def test_business_change_rolls_back_when_event_recording_fails(client, monkeypatch):
+    _, e = saved(client)
+    from app import workflow
+    def fail(*args):
+        raise RuntimeError('Synthetic journal failure')
+    monkeypatch.setattr(workflow, 'record_event', fail)
+    with pytest.raises(RuntimeError):
+        client.post(f"/api/estimates/{e['id']}/approve", json={'version': e['version'], 'approved_by': 'Demo', 'note': 'Test'})
+    assert client.get(f"/api/estimates/{e['id']}").json()['state'] == 'draft'
+    assert client.get('/api/integrations/events').json()['items'] == []

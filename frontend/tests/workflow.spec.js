@@ -47,6 +47,41 @@ const saveEstimate = (page) => page.getByRole('button', { name: 'Save estimate',
 const saveState = (page) => page.getByTestId('save-state')
 const line = (page, label, index = 0) => page.getByLabel(label, { exact: true }).nth(index)
 
+test('today and sourced estimate library stay useful on desktop and phone', async ({ page }, testInfo) => {
+  await login(page, 'admin.demo')
+  await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible()
+  await noOverflow(page)
+  await createJob(page, 'Demo library ' + Date.now())
+  await startEstimate(page)
+  await line(page, 'Description').fill('Library test tile')
+  await line(page, 'Quantity').fill('10')
+  await line(page, 'Unit cost').fill('7.25')
+  await saveEstimate(page)
+  await expect(saveState(page)).toContainText('Saved')
+  await page.goto('/#/assistant')
+  await expect(page.getByRole('heading', { name: 'Estimate library', exact: true })).toBeVisible()
+  await page.getByLabel('Search descriptions, sections or jobs').fill('Library test tile')
+  await page.getByLabel('Approved estimates only').uncheck()
+  await page.getByRole('button', { name: 'Search', exact: true }).click()
+  await expect(page.locator('main')).toContainText('$7.25')
+  await expect(page.locator('main')).toContainText('AI generation is not connected')
+  await expect(page.getByText('Not connected', { exact: true })).toHaveCount(4)
+  await noOverflow(page)
+  await page.screenshot({ path: `test-artifacts/${testInfo.project.name}-library.png`, fullPage: true, animations: 'disabled' })
+  await page.getByRole('link', { name: /Demo library.*Revision 1/ }).first().click()
+  await expect(line(page, 'Description')).toHaveValue('Library test tile')
+  await page.goto('/#/today')
+  await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible()
+  await page.screenshot({ path: `test-artifacts/${testInfo.project.name}-today.png`, fullPage: true, animations: 'disabled' })
+  await signOut(page)
+  await login(page, 'worker.demo')
+  await expect(page.getByRole('heading', { name: 'My jobs', exact: true })).toBeVisible()
+  await page.goto('/#/assistant')
+  await expect(page.getByRole('heading', { name: 'That page isn’t here' })).toBeVisible()
+  expect((await page.request.get('/api/assistant/evidence')).status()).toBe(403)
+  expect((await page.request.get('/api/integrations/events')).status()).toBe(403)
+})
+
 test('customer → estimate → approval → project → assigned worker', async ({ page }, testInfo) => {
   const errors = []
   page.on('pageerror', (error) => errors.push(error.message))
@@ -162,6 +197,7 @@ test('customer → estimate → approval → project → assigned worker', async
 
   // The administrator sees the worker's update.
   await login(page, 'admin.demo')
+  await page.getByRole('link', { name: 'Jobs', exact: true }).click()
   await page.getByRole('link').filter({ hasText: jobName }).filter({ visible: true }).click()
   await expect(page.getByText('Demo field worker moved Measure kitchen to Done')).toBeVisible()
   await page.getByRole('button').filter({ has: page.getByText('Measure kitchen', { exact: true }) }).click()
@@ -324,6 +360,7 @@ test('field crew reach only their own jobs and never see prices', async ({ page 
 
 test('long names, emails and descriptions never push a page sideways', async ({ page }) => {
   await login(page, 'admin.demo')
+  await page.getByRole('link', { name: 'Jobs', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Jobs', exact: true })).toBeVisible()
   const api = async (method, url, data) => {
     const response = await page.request.fetch('/api' + url, { method, data, headers: { 'X-Talley-Request': '1' } })

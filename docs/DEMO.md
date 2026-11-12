@@ -8,7 +8,7 @@ Screenshots of each step are in [docs/screenshots](screenshots).
 
 ## 1. Jobs — what needs attention today
 
-Sign in as **admin.demo**. Jobs opens as a sheet: one row per job with its stage,
+Sign in as **admin.demo**, then open **Jobs**. It is a sheet: one row per job with its stage,
 next step, who owns it, when it is due and what it is worth.
 
 - **Demo · Girard Avenue porch repair** is at the top: its next step is **Blocked**
@@ -118,3 +118,15 @@ A later revision is a record of a new price, not an automatic change order.
 - Please supply AE-Talley-App-Meeting-Prep.pdf, the other estimating and
   project tools he mentioned, and two or three real past estimates before the
   demo pricing or these workflow choices are treated as final.
+## Today and estimate-library walkthrough — November 12, 2026
+
+1. Sign in as the demo administrator. Today opens with the jobs that need review.
+   Use New job to capture a customer, site and scope, or open a priority job.
+2. Open Jobs to use the existing sheet and estimating/approval workflow above.
+3. Open Library. Search `tile`; approved estimates are shown by default. Every
+   unit cost has its job, revision and date. Open the source to inspect the estimate.
+4. Uncheck Approved estimates only and press Search to include drafts. Draft
+   results are labelled; no price has been generated or adjusted by AI.
+5. Review Connected services below the library: all external providers remain
+   disconnected. Approval and conversion now record local events for future APIs.
+6. Switch to a worker account: the library and internal-cost APIs remain blocked.

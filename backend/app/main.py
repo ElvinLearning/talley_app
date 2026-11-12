@@ -17,6 +17,7 @@ from .db import connect, init_db
 from .auth import admin, router as auth_router
 from .workflow import router as workflow_router
 from .bootstrap import initialize
+from .assistant import router as assistant_router
 
 STATUSES = ["not_started", "in_progress", "blocked", "review", "done"]
 
@@ -64,6 +65,7 @@ async def security_headers(request: Request, call_next):
 
 public_app.include_router(auth_router)
 public_app.include_router(workflow_router)
+public_app.include_router(assistant_router)
 
 
 def _now() -> str:

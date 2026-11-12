@@ -1,5 +1,48 @@
 # Build evidence
 
+## Today workspace and API foundation — November 12, 2026
+
+Starting point: clean `codex/estimating-demo` at `8be7fe0`, also remote main.
+No AGENTS.md found in the checkout or checked ancestor directories. Reviewed
+README, schema, migration 001, authentication, workflow routes, screens, tests
+and Docker deployment. The supplied Railway production URL responds successfully;
+its latest deployment metadata labels it as main `8be7fe0`. This pass does not
+replace the deployed app or change its environment variables.
+
+Implemented:
+
+- Today landing page with a burgundy architectural motif, responsive navigation,
+  actionable priority list, summary counts, recently updated jobs and New job.
+- Estimate library with literal keyword search, approved-only default, internal
+  unit costs and links to source job/revision; response source IDs include version.
+  The screen explicitly distinguishes saved estimated costs from actual costs,
+  supplier quotes and generated prices. No AI provider is called.
+- Administrator-only evidence, connection-status and cursor-paginated event APIs.
+- Additive migration 002 records estimate approval and project creation events in
+  the same transaction as each action, with unique IDs and deduplication keys.
+  No backfill, dispatcher, outbound requests, service credentials or live sync.
+- README describes event consumers, ownership, review, authentication and retry
+  work required before external integrations are activated.
+
+Verification: 20 backend tests, 11 frontend unit tests and 16 browser tests passed.
+Browser checks use the production frontend served by FastAPI on a scratch local
+database, in desktop and iPhone-sized Chromium. The existing full estimate-to-field
+workflow still passes. New tests exercise library source links, cost redaction,
+permission boundaries, event pagination/persistence/deduplication, and rollback
+of approval if journaling fails. The build and local-secret bundle check pass.
+Inspected Today and Library screenshots; browser checks assert no sideways scroll.
+One existing Starlette/AnyIO deprecation warning remains. Physical phones and
+Safari remain untested.
+
+The first browser run exposed test assumptions about the old Jobs landing page
+and a sign-in/navigation race. Tests now explicitly open Jobs for the full list
+and wait for successful worker sign-in before navigating. The rerun passed.
+
+Still needed: private photo capture, production identity/backups, PostgreSQL
+migration, actual-cost history, AI model evaluation and reviewed draft creation,
+provider-specific OAuth/webhooks, delivery retries and operational monitoring.
+This is a complete first increment, not a claim of production AI readiness.
+
 Two passes are recorded here, newest first: the workspace redesign
 (November 11–12, 2026) and the original estimating pass (November 11, 2026).
 

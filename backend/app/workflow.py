@@ -8,6 +8,7 @@ from pydantic import Field
 from .auth import admin, current_user
 from .db import connect
 from .estimating import StrictModel, EstimateIn, calculate, client_document
+from .events import record_event
 
 router = APIRouter(prefix="/api")
 
@@ -271,6 +272,9 @@ def estimate_approve(id: int, payload: Approval, user=Depends(admin)):
           recorded_by=?,version=version+1 WHERE id=?""", (payload.approved_by,payload.note,now(),user["id"],id))
         if not conn.execute("SELECT 1 FROM project_origins WHERE job_id=?", (estimate["job_id"],)).fetchone():
             conn.execute("UPDATE jobs SET status='approved',updated_at=? WHERE id=?", (now(), estimate["job_id"]))
+        record_event(conn, "estimate.approved", id,
+                     dict(estimate_id=id, job_id=estimate["job_id"], revision=estimate["revision"]),
+                     f"estimate.approved:{id}")
         return estimate_detail(conn, id)
 
 @router.post("/estimates/{id}/convert", dependencies=[Depends(admin)])
@@ -294,6 +298,9 @@ def estimate_convert(id: int):
         conn.execute("UPDATE jobs SET status='active',updated_at=? WHERE id=?", (now(),estimate["job_id"]))
         conn.execute("INSERT INTO activity(board_id,message,kind,created_at) VALUES(?,?,'update',?)",
                      (board_id,f"Created from approved estimate revision {estimate['revision']}",now()))
+        record_event(conn, "project.created", board_id,
+                     dict(board_id=board_id, job_id=estimate["job_id"], estimate_id=id),
+                     f"project.created:{estimate['job_id']}")
         return {"board_id": board_id, "created": True, "estimate_id": id}
 
 @router.get("/workers", dependencies=[Depends(admin)])

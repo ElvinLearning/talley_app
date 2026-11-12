@@ -1,5 +1,7 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
-import { ClipboardList, LogOut, TrendingUp, Users } from 'lucide-react'
+import { BookOpen, ClipboardList, LogOut, Sunrise, TrendingUp, Users } from 'lucide-react'
+import TodayPage from './pages/TodayPage'
+import AssistantPage from './pages/AssistantPage'
 import Logo from './components/Logo'
 import { Alert, Field, Loading } from './components/ui'
 import BoardPage from './pages/BoardPage'
@@ -68,9 +70,11 @@ function Login({ onLogin, notice, overlay = false }) {
 }
 
 const NAV = [
+  { key: 'today', path: '/today', label: 'Today', Icon: Sunrise },
   { key: 'jobs', path: '/jobs', label: 'Jobs', Icon: ClipboardList },
   { key: 'crew', path: '/crew', label: 'Crew', Icon: Users },
   { key: 'overview', path: '/overview', label: 'Overview', Icon: TrendingUp },
+  { key: 'assistant', path: '/assistant', label: 'Library', Icon: BookOpen },
 ]
 
 const DEMO_NOTE = 'Demo workspace · Synthetic records and prices only · No client messages are sent'
@@ -82,7 +86,7 @@ function NotFound({ home }) {
         <h1 className="font-serif text-2xl">That page isn’t here</h1>
         <p className="mt-2 text-sm text-steel">The link may be old, or the record may not be yours to open.</p>
         <a className="btn-primary mt-5" href={href(home)}>
-          Back to {home === '/jobs' ? 'jobs' : 'my jobs'}
+          Back to {home === '/today' ? 'today' : home === '/jobs' ? 'jobs' : 'my jobs'}
         </a>
       </div>
     </div>
@@ -91,6 +95,8 @@ function NotFound({ home }) {
 
 function adminRoute(parts) {
   const [section, id, sub, subId, leaf] = parts
+  if (!section || (section === 'today' && parts.length === 1)) return { key: 'today', title: 'Today', view: <TodayPage /> }
+  if (section === 'assistant' && parts.length === 1) return { key: 'assistant', title: 'Estimate library', view: <AssistantPage /> }
   const numeric = (value) => /^\d+$/.test(value || '')
   if (!section || section === 'jobs') {
     if (!id) return { key: 'jobs', title: 'Jobs', view: <JobsPage /> }
@@ -197,7 +203,7 @@ export default function App() {
     setUser(null)
   }
 
-  const home = isAdmin ? '/jobs' : '/'
+  const home = isAdmin ? '/today' : '/'
   const signOutButton = (
     <button type="button" className="btn-ghost" onClick={signOut}>
       <LogOut size={16} aria-hidden="true" />
@@ -213,11 +219,12 @@ export default function App() {
         </a>
 
         {isAdmin ? (
-          <aside className="no-print hidden w-[232px] shrink-0 flex-col border-r border-line bg-white lg:flex">
-            <a href={href('/jobs')} className="block px-5 py-5" aria-label="A E Talley Construction — jobs">
+          <aside className="workspace-sidebar no-print hidden w-[232px] shrink-0 flex-col border-r border-line bg-white lg:flex">
+            <a href={href('/today')} className="block px-5 py-7" aria-label="A E Talley Construction — today">
               <Logo size={36} />
             </a>
-            <nav aria-label="Main" className="flex-1 space-y-1 px-3">
+            <p className="eyebrow text-steel px-6 pb-3">Workspace</p>
+            <nav aria-label="Main" className="flex-1 space-y-1.5 px-3">
               {NAV.map(({ key, path: to, label, Icon }) => {
                 const active = route?.key === key
                 return (

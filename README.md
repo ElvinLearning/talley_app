@@ -3,8 +3,55 @@
 Built by Cozy Digital. A single-company, **local synthetic-data demo** that extends
 the existing React/Vite/Tailwind + FastAPI/SQLite field board.
 
-Start with **Jobs**: customer → job → estimate → recorded approval → project →
+Start with **Today**, then **Jobs**: customer → job → estimate → recorded approval → project →
 assigned tasks → field status update.
+
+## Today, historical evidence and integration foundation — November 12, 2026
+
+The administrator landing page is now `#/today`: prioritized blocked, overdue,
+unassigned, ready-to-start and due-today jobs; counts; recently updated jobs; and
+customer/job intake. It uses saved records and local calendar dates, not AI.
+The existing `#/jobs` sheet and all estimate links remain available.
+
+`#/assistant` opens the **Estimate library**. Search saved descriptions, sections
+and job names, with approved estimates selected by default. Each result identifies
+the original estimate, revision, version, date and internal unit cost. These are
+estimated costs, not actual costs or current supplier quotes. Drafts can change;
+approved versions remain frozen. Nothing generates prices or sends data externally.
+
+Administrator-only API foundations (workers receive 403):
+
+- `GET /api/assistant/evidence?q=tile&approved_only=true`: versioned evidence
+  envelope, stable source references including estimate version, and original
+  estimate links. Searches the newest 300 eligible estimates; returns at most 60
+  lines and reports matching count and search bounds. Search is literal keyword
+  matching, not semantic retrieval. Future model adapters must recheck permissions
+  and source versions before using evidence.
+- `GET /api/integrations`: truthful disconnected-service status; no credentials.
+- `GET /api/integrations/events?after=0&limit=50`: ordered, cursor-paginated local
+  event journal. `estimate.approved` and `project.created` are recorded in the same
+  database transaction as the business change. Each has a unique event ID,
+  schema version, resource references and timestamp. Repeated approvals/conversions
+  do not create duplicate events. This starts at migration 002; old actions are
+  not backfilled. The journal is not a webhook delivery queue.
+
+Future integration workers must use dedicated scoped service authentication
+(not copied browser sessions), checkpoint the cursor after successful processing,
+deduplicate by event ID, and reconcile missed history before starting. Add signed
+webhook verification for inbound events; bounded retries and delivery records for
+outbound events; server-held OAuth credentials; visible failures; and an explicit
+record-ownership map before activating any provider. No generic outbound URL,
+credential form, background dispatcher or machine credential is enabled here.
+
+Future AI must return reviewed drafts with cited source IDs, preserve approved
+revisions, and pass all pricing through the existing deterministic calculation
+engine. Uploaded text must never override tool permissions. No model, live calls,
+accounting, calendar synchronization or paid provider has been enabled.
+
+PostgreSQL, private photos, production identity and restore testing remain next
+steps. SQLite and the existing same-origin session model are retained in this
+increment; migration 002 is additive and idempotent. Back up any real database
+before upgrading. The public login-free demo is unsuitable for private data.
 
 ## What is in the workspace
 

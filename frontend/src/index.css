@@ -119,6 +119,29 @@
   padding: 28px 32px 56px;
 }
 
+.workspace-sidebar { background: linear-gradient(180deg, #fff 65%, #fcfaf7); }
+.day-banner {
+  position: relative;
+  overflow: hidden;
+  padding: 32px;
+  border-radius: 18px;
+  color: white;
+  background: linear-gradient(115deg, #481923, #6d2431 65%, #814352);
+  box-shadow: 0 12px 32px #4b162016;
+}
+.blueprint { position: absolute; inset: 0 0 0 48%; opacity: .16; background-image: linear-gradient(#ffffff44 1px, transparent 1px), linear-gradient(90deg, #ffffff44 1px, transparent 1px); background-size: 28px 28px; transform: rotate(-12deg) scale(1.4); mask-image: linear-gradient(90deg, transparent, black); }
+.blueprint span { position: absolute; border: 2px solid white; width: 160px; height: 130px; right: 14%; top: 22%; }
+.blueprint span:nth-child(2) { width: 80px; height: 80px; right: 39%; top: 48%; }
+.blueprint span:nth-child(3) { width: 110px; height: 90px; right: 9%; top: 61%; }
+.focus-row { display: flex; align-items: center; gap: 16px; padding: 20px; transition: background .15s; }
+.focus-row:hover { background: #fcfaf7; }
+.focus-number { align-self: flex-start; padding-top: 2px; color: #8a6c67; font-family: Georgia, serif; font-size: 22px; }
+@media (max-width: 600px) {
+  .day-banner { padding: 24px; }
+  .blueprint { opacity: .09; }
+  .focus-row { padding: 16px; gap: 12px; }
+}
+
 .no-scrollbar {
   scrollbar-width: none;
 }
