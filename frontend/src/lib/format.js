@@ -1,8 +1,11 @@
 const DAY = 24 * 60 * 60 * 1000
 
-const startOfToday = () => {
+// Days are compared noon to noon. Comparing a noon date with midnight left
+// every difference at x.5, which rounded up: a task due today read "Tomorrow"
+// and one due yesterday was not late.
+const noonToday = () => {
   const now = new Date()
-  now.setHours(0, 0, 0, 0)
+  now.setHours(12, 0, 0, 0)
   return now
 }
 
@@ -24,17 +27,6 @@ const parseStamp = (stamp) => {
 export const dollars = (cents) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format((cents || 0) / 100)
 
-export function money(value = 0) {
-  const amount = Number(value) || 0
-  if (amount === 0) return '$0'
-  if (Math.abs(amount) >= 1_000_000) {
-    const millions = amount / 1_000_000
-    return `$${millions.toFixed(Number.isInteger(millions) ? 0 : 2)}M`
-  }
-  if (Math.abs(amount) >= 1_000) return `$${Math.round(amount / 1000)}K`
-  return `$${Math.round(amount)}`
-}
-
 export function moneyFull(value = 0) {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -49,12 +41,6 @@ export function shortDate(iso) {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-export function longDate(iso) {
-  const date = parseDay(iso)
-  if (!date) return '—'
-  return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-}
-
 /** "Fri, Nov 20" — a due date someone can act on without counting days. */
 export function weekdayDate(iso) {
   const date = parseDay(iso)
@@ -65,7 +51,7 @@ export function weekdayDate(iso) {
 export function daysFromToday(iso) {
   const date = parseDay(iso)
   if (!date) return null
-  return Math.round((date.getTime() - startOfToday().getTime()) / DAY)
+  return Math.round((date.getTime() - noonToday().getTime()) / DAY)
 }
 
 export function dueLabel(iso, status) {
@@ -89,7 +75,10 @@ export function dueInfo(iso, status) {
   const days = daysFromToday(iso)
   if (days === null) return null
   if (status === 'done') return { label: shortDate(iso), tone: 'done' }
-  if (days < 0) return { label: `${shortDate(iso)} · ${Math.abs(days)} day${days === -1 ? '' : 's'} late`, tone: 'late' }
+  if (days < 0) {
+    const late = `${Math.abs(days)} day${days === -1 ? '' : 's'} late`
+    return { label: `${shortDate(iso)} · ${late}`, tone: 'late', date: shortDate(iso), late }
+  }
   if (days === 0) return { label: 'Today', tone: 'today' }
   if (days === 1) return { label: 'Tomorrow', tone: 'soon' }
   if (days < 7) return { label: weekdayDate(iso), tone: 'soon' }
@@ -116,6 +105,13 @@ export function savedAt(stamp) {
   const time = parsed.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
   if (parsed.toDateString() === new Date().toDateString()) return time
   return `${parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${time}`
+}
+
+/** "Nov 11, 2026" from a server timestamp. */
+export function stampDay(stamp) {
+  const parsed = parseStamp(stamp)
+  if (!parsed) return ''
+  return parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 /** "November 11, 2026" from a server timestamp. */

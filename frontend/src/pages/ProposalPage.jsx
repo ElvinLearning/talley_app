@@ -102,18 +102,19 @@ export default function ProposalPage({ jobId, estimateId }) {
           </div>
         </header>
 
-        <div className="mt-6 grid gap-x-10 gap-y-5 sm:grid-cols-2">
-          <section>
+        {/* min-w-0 + wrap anywhere: a long name or email wraps instead of widening the page. */}
+        <div className="mt-6 grid grid-cols-1 gap-x-10 gap-y-5 [overflow-wrap:anywhere] sm:grid-cols-2">
+          <section className="min-w-0">
             <h2 className="eyebrow text-steel">Prepared for</h2>
             <p className="mt-1.5 font-semibold">{customer.name}</p>
             {customer.contact !== customer.name ? <p>{customer.contact}</p> : null}
-            {customer.email ? <p className="break-words">{customer.email}</p> : null}
+            {customer.email ? <p>{customer.email}</p> : null}
             {customer.phone ? <p>{customer.phone}</p> : null}
           </section>
-          <section>
+          <section className="min-w-0">
             <h2 className="eyebrow text-steel">Job site</h2>
             <p className="mt-1.5 font-semibold">{job.name}</p>
-            <p className="break-words">{job.address}</p>
+            <p>{job.address}</p>
           </section>
         </div>
 
@@ -123,26 +124,23 @@ export default function ProposalPage({ jobId, estimateId }) {
         </section>
 
         {sections.map((section, index) => (
-          <table key={index} className="mt-7 w-full border-collapse text-sm">
+          // Phones: description with quantity and unit beneath it, and the amount.
+          // Wider screens and print: four fixed columns that line up across sections.
+          <table key={index} className="mt-7 w-full border-collapse text-sm [overflow-wrap:anywhere] sm:table-fixed">
             <caption className="sr-only">{section.name}</caption>
-            <colgroup>
-              <col />
-              <col style={{ width: '4.5rem' }} />
-              <col style={{ width: '5.5rem' }} />
-              <col style={{ width: '6.5rem' }} />
-            </colgroup>
             <thead>
-              <tr className="border-b border-ink text-left">
+              {/* Column headings sit on the same baseline as the section name. */}
+              <tr className="border-b border-ink text-left [&>th]:align-baseline">
                 <th scope="col" className="py-2 pr-3 text-base font-semibold">
                   {section.name}
                 </th>
-                <th scope="col" className="py-2 pr-3 text-right text-xs font-semibold text-steel">
+                <th scope="col" className="hidden w-[4.5rem] py-2 pr-3 text-right text-xs font-semibold text-steel sm:table-cell">
                   Qty
                 </th>
-                <th scope="col" className="py-2 pr-3 text-xs font-semibold text-steel">
+                <th scope="col" className="hidden w-[5.5rem] py-2 pr-3 text-xs font-semibold text-steel sm:table-cell">
                   Unit
                 </th>
-                <th scope="col" className="py-2 text-right text-xs font-semibold text-steel">
+                <th scope="col" className="whitespace-nowrap py-2 text-right text-xs font-semibold text-steel sm:w-[7.5rem]">
                   Amount
                 </th>
               </tr>
@@ -150,19 +148,25 @@ export default function ProposalPage({ jobId, estimateId }) {
             <tbody>
               {section.lines.map((line, row) => (
                 <tr key={row} className="border-b border-line align-top">
-                  <td className="break-words py-2.5 pr-3">{line.description}</td>
-                  <td className="tabular py-2.5 pr-3 text-right">{line.quantity}</td>
-                  <td className="break-words py-2.5 pr-3">{line.unit}</td>
-                  <td className="tabular py-2.5 text-right">{dollars(line.price_cents)}</td>
+                  <td className="py-2.5 pr-3">
+                    {line.description}
+                    <span className="block text-xs text-steel sm:hidden">
+                      {line.quantity} {line.unit}
+                    </span>
+                  </td>
+                  <td className="tabular hidden py-2.5 pr-3 text-right sm:table-cell">{line.quantity}</td>
+                  <td className="hidden py-2.5 pr-3 sm:table-cell">{line.unit}</td>
+                  <td className="tabular whitespace-nowrap py-2.5 text-right">{dollars(line.price_cents)}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr>
-                <td colSpan={3} className="py-2.5 pr-3 text-right text-steel">
+                <td className="py-2.5 pr-3 text-right text-steel sm:hidden">Subtotal</td>
+                <td colSpan={3} className="hidden py-2.5 pr-3 text-right text-steel sm:table-cell">
                   {section.name} subtotal
                 </td>
-                <td className="tabular py-2.5 text-right font-semibold">{dollars(section.price_cents)}</td>
+                <td className="tabular whitespace-nowrap py-2.5 text-right font-semibold">{dollars(section.price_cents)}</td>
               </tr>
             </tfoot>
           </table>

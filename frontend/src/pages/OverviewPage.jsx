@@ -70,7 +70,7 @@ export default function OverviewPage() {
         </a>
       </div>
 
-      <div className="mt-6 grid gap-5 lg:grid-cols-2">
+      <div className="mt-6 grid gap-5 lg:grid-cols-2 lg:items-start">
         <section aria-labelledby="due-title" className="card overflow-hidden">
           <h2 id="due-title" className="section-title px-4 py-3.5">
             Due in the next 10 days

@@ -216,7 +216,7 @@ export default function ProjectTasks({ board, team, reload, openTask, onOpenTask
       ) : null}
 
       {total ? (
-        <div className="task-row hidden border-t border-line bg-paper px-4 py-2 text-xs font-semibold text-steel md:grid" aria-hidden="true">
+        <div className="task-head border-t border-line bg-paper px-4 py-2 text-xs font-semibold text-steel" aria-hidden="true">
           <span>Task</span>
           <span className="pl-2">Owner</span>
           <span className="pl-2">Due</span>

@@ -94,9 +94,9 @@ export function EmptyState({ icon: Icon, title, children, action }) {
 
 export function BackLink({ to, children }) {
   return (
-    <a href={href(to)} className="no-print -ml-1.5 inline-flex min-h-[36px] items-center gap-1.5 rounded-md px-1.5 text-sm font-semibold text-maroon hover:bg-maroon-tint">
-      <ArrowLeft size={16} aria-hidden="true" />
-      {children}
+    <a href={href(to)} className="no-print -ml-1.5 inline-flex min-h-[36px] max-w-full items-center gap-1.5 rounded-md px-1.5 text-sm font-semibold text-maroon hover:bg-maroon-tint">
+      <ArrowLeft size={16} className="shrink-0" aria-hidden="true" />
+      <span className="truncate">{children}</span>
     </a>
   )
 }

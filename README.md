@@ -4,8 +4,22 @@ Built by Cozy Digital. A single-company, **local synthetic-data demo** that exte
 the existing React/Vite/Tailwind + FastAPI/SQLite field board.
 
 Start with **Jobs**: customer → job → estimate → recorded approval → project →
-assigned tasks → field status update. The Projects, Crew and Overview screens from
-the original app remain available to administrators.
+assigned tasks → field status update.
+
+## What is in the workspace
+
+| Screen | Address | What it is for |
+| --- | --- | --- |
+| Jobs | `#/jobs` | The sheet of every job: stage, next step, owner, due date and value. Filter by stage or "Needs attention" (blocked, overdue or unowned), search, sort, and change a stage in place. |
+| Job | `#/jobs/12` | One page per job: next step with its action, customer contact, scope, estimates and revisions, the task sheet (owner, due date and status edit in place), approved budget, crew access and activity. |
+| Estimate | `#/jobs/12/estimates/7` | Sections and lines as a sheet. Your cost, markup, selling price and tax stay in view. Field-level validation, Ctrl/⌘+S, "Add from past estimates" (your own saved prices; nothing is generated). |
+| Client estimate | `#/jobs/12/estimates/7/preview` | The letter-size document the customer gets. Selling prices only. Print / save PDF. |
+| Field crew | `#/` and `#/work/5` | My jobs → my tasks → status, note, save. No prices are ever sent to a crew account. |
+| Crew, Overview | `#/crew`, `#/overview` | Who owns what; what is due in the next ten days. Project boards started without an estimate are under Overview → All project boards. |
+
+Every screen has its own address, so refresh, the browser's back button and the
+phone's back gesture work. Unsaved estimate or field changes ask before leaving.
+If a session ends mid-task, sign-in appears over the screen and the work is kept.
 
 ## Run locally on Windows
 
@@ -56,17 +70,21 @@ Restart Vite if needed. This only prefills the login form; authentication still
 runs normally. The `import.meta.env.DEV` guard disables autofill in production
 builds. Never use real account credentials in client-side Vite variables.
 
-## Add the sample job
+## Add the sample jobs
 
 With the backend running, set `TALLEY_DEMO_PASSWORD` to the same value in another
 terminal and run:
 
 ```powershell
-.venv/Scripts/python.exe scripts/seed_demo.py
+.venv/Scripts/python.exe scripts/seed_demo.py --showcase
 ```
 
-The script creates **Demo · South Philadelphia kitchen refresh** and a saved draft.
-It skips that named job on repeat. All names, addresses and rates are synthetic.
+Without `--showcase` the script creates only **Demo · South Philadelphia kitchen
+refresh** and its saved draft, which the walkthrough uses. With it, six more jobs
+are added, one at each stage: a lead, an approved estimate waiting for its project,
+an active job with a blocked and an overdue task, an active job on track, one on
+hold and one complete. Jobs that already exist are skipped. Every name, address,
+person and price is synthetic. Set `TALLEY_API_URL` to seed an API on another port.
 See [Anthony's demo walkthrough](docs/DEMO.md).
 
 ## Persistence, migrations and security
@@ -116,30 +134,49 @@ are not in this version. Totals above $10 billion are rejected to bound numeric 
 
 ```powershell
 Set-Location backend
-../.venv/Scripts/python.exe -m pytest -q
+../.venv/Scripts/python.exe -m pytest -q      # API: workflow, permissions, money
 Set-Location ../frontend
-npm run build
+npm run test:unit                              # estimate maths and due dates
+npm run build                                  # production build + bundle check
 npx playwright install chromium
-# Both local services must be running with the same demo password.
 $env:TALLEY_DEMO_PASSWORD = Read-Host 'Local demo password'
-npm run test:e2e
+npm run test:e2e                               # real browser, desktop and phone size
 ```
 
-Backend tests use an isolated temporary database. Browser tests create clearly
-named synthetic demo jobs in the running database. Run them only on a demo instance.
-Desktop and iPhone-sized Chromium projects are configured. Browser emulation is
-not a physical phone/Safari test. Screenshots and failure traces are ignored local
-artifacts under `frontend/test-artifacts` and `frontend/test-results`.
+- **Backend tests** use an isolated temporary database.
+- **Unit tests** (`frontend/tests/unit`, Node's built-in runner, no extra packages)
+  hold the editor's live totals to the same cases as the server, so what is shown
+  while typing equals what is saved.
+- **The build** ends with `scripts/check-bundle.mjs`, which fails if a value from
+  `frontend/.env.local` (such as the demo autofill password) is in `dist/`.
+- **Browser tests** create clearly named synthetic jobs and need a server that
+  requires sign-in (`DEMO_SKIP_LOGIN` unset). To keep the demo database clean, run
+  them against a scratch copy instead of the demo:
 
-There were no existing lint/type-check/test scripts on the source branch; its
-existing production build remains the frontend compile check.
+  ```powershell
+  # terminal 1 — scratch API on its own database (seeds the demo accounts on first start)
+  $env:TALLEY_DEMO_PASSWORD = Read-Host 'Local demo password'
+  $env:DATABASE_PATH = "$env:TEMP\talley-scratch.db"; $env:DEMO_MODE = '1'; $env:COOKIE_SECURE = '0'
+  Set-Location backend; ../.venv/Scripts/python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8001
+  # terminal 2 — a second dev server pointed at it
+  $env:API_URL = 'http://127.0.0.1:8001'; npm --prefix frontend run dev -- --host 127.0.0.1 --port 5174
+  # terminal 3 — same password as terminal 1
+  $env:TALLEY_DEMO_PASSWORD = Read-Host 'Local demo password'
+  $env:TALLEY_BASE_URL = 'http://127.0.0.1:5174'; npm --prefix frontend run test:e2e
+  ```
+
+Desktop and iPhone-sized Chromium projects are configured. Browser emulation is
+not a physical phone or Safari test. Screenshots and failure traces are ignored
+local artifacts under `frontend/test-artifacts` and `frontend/test-results`.
+There is no lint or type-check configuration in the repository.
 
 ## Scope and deployment
 
-No deployment occurred. The source branch referred to a Base44-managed external
-Compose setup; no Docker/hosting/CI configuration was present in the repository.
+The estimating and workspace passes described above deployed nothing. A Dockerfile
+for a hosted demo was added afterwards; see "Railway demo deployment" below.
 Capacitor configuration is retained as historical source, but native packaging is
-outside this browser pass.
+outside this browser pass and its command-line tool carries known advisories
+(see [build notes](docs/BUILD-NOTES.md)).
 
 No emails, payments, accounting integrations, production AI, phone routing,
 photo-upload system or production launch are added here. The marketing website
@@ -170,3 +207,6 @@ Set `DEMO_MODE=1`, a generated `TALLEY_DEMO_PASSWORD` (12+ characters), and
 `DEMO_SKIP_LOGIN=1` only for the public synthetic-data demo. Anyone with the URL
 can edit this demo. Disable login-free access before storing customer data.
 Local databases and environment files are excluded from the container image.
+API responses are never cached (`no-store`); the page shell is revalidated on
+every visit so a new deploy is picked up; hashed files under `/assets` are cached
+for a year.

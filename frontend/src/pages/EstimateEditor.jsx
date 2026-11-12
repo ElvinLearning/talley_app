@@ -47,7 +47,7 @@ function Summary({ form, sum, errors, change, touch, disabled }) {
   const basis = TAX_BASES.find((entry) => entry.value === form.tax_basis)
   const margin = sum.subtotal ? ((sum.markup / sum.subtotal) * 100).toFixed(1) : null
   return (
-    <aside aria-labelledby="summary-title" className="est-summary card divide-y divide-line">
+    <aside aria-labelledby="summary-title" className="est-summary card">
       <fieldset disabled={disabled} className="min-w-0 space-y-3 p-4">
         <legend id="summary-title" className="section-title float-left mb-3 w-full">
           Pricing rules
@@ -209,7 +209,7 @@ export default function EstimateEditor({ jobId, estimateId }) {
     // A reused line fills the untouched starter row instead of leaving it behind.
     const replaceStarter = line.description && lines.length === 1 && isBlankLine(lines[0])
     change(setSection(si, { lines: replaceStarter ? [line] : [...lines, line] }))
-    if (!line.description) focusNext.current = `[data-line="${si}-${lines.length}"] input`
+    if (!line.description) focusNext.current = `[data-line="${si}-${lines.length}"] textarea`
   }
 
   const save = useCallback(async () => {
@@ -332,7 +332,7 @@ export default function EstimateEditor({ jobId, estimateId }) {
     if (event.key !== 'Enter') return
     event.preventDefault()
     if (li === form.sections[si].lines.length - 1) addLine(si)
-    else page.current?.querySelector(`[data-line="${si}-${li + 1}"] input`)?.focus()
+    else page.current?.querySelector(`[data-line="${si}-${li + 1}"] textarea`)?.focus()
   }
 
   const saveButton = (extra = '') => (
@@ -440,7 +440,7 @@ export default function EstimateEditor({ jobId, estimateId }) {
           <fieldset disabled={approved} className="est-sections min-w-0 space-y-4">
             <legend className="sr-only">Estimate details</legend>
             <Field label="Estimated scope" hint={approved ? null : 'Printed at the top of the client estimate.'} error={errors.scope}>
-              <textarea className="field" rows={3} maxLength={10000} value={form.scope} onBlur={() => touch('scope')} onChange={(event) => change({ ...form, scope: event.target.value })} />
+              <textarea className="field max-h-72 min-h-[5.5rem]" style={{ fieldSizing: 'content' }} rows={3} maxLength={10000} value={form.scope} onBlur={() => touch('scope')} onChange={(event) => change({ ...form, scope: event.target.value })} />
             </Field>
 
             {form.sections.map((section, si) => (
@@ -501,10 +501,14 @@ export default function EstimateEditor({ jobId, estimateId }) {
                   })
                   return (
                     <div key={li} className="est-line" data-line={`${si}-${li}`} role="group" aria-label={`${section.name || `Section ${si + 1}`}, line ${li + 1}`}>
-                      <label className="c-desc">
-                        <span className="cell-label label">Description</span>
-                        <input {...cell('description')} maxLength={500} placeholder="e.g. Install floor tile" />
-                      </label>
+                      {/* Not wrapped in its label: a textarea's own text would become part of the label. */}
+                      <div className="c-desc">
+                        <label className="cell-label label" htmlFor={`line-${si}-${li}-description`}>
+                          Description
+                        </label>
+                        {/* Grows with long descriptions where the browser supports it; Enter moves on instead of adding a line break. */}
+                        <textarea {...cell('description')} id={`line-${si}-${li}-description`} rows={1} maxLength={500} placeholder="e.g. Install floor tile" style={{ fieldSizing: 'content', resize: 'none', display: 'block' }} />
+                      </div>
                       <label className="c-kind">
                         <span className="cell-label label">Type</span>
                         <select className="cell" value={line.kind} onChange={(event) => setLine(si, li, 'kind', event.target.value)}>
@@ -587,7 +591,7 @@ export default function EstimateEditor({ jobId, estimateId }) {
             ) : null}
 
             <Field label="Client-facing notes" hint={approved ? null : 'Optional. Printed under the totals on the client estimate.'} error={errors.notes}>
-              <textarea className="field" rows={3} maxLength={5000} value={form.notes} onChange={(event) => change({ ...form, notes: event.target.value })} />
+              <textarea className="field max-h-72 min-h-[5.5rem]" style={{ fieldSizing: 'content' }} rows={3} maxLength={5000} value={form.notes} onChange={(event) => change({ ...form, notes: event.target.value })} />
             </Field>
           </fieldset>
         </form>

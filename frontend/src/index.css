@@ -195,11 +195,23 @@
 }
 
 /* ---- Task sheet (inside a job) ---- */
-.task-row {
-  display: grid;
+.task-row,
+.task-head {
   grid-template-columns: minmax(0, 1fr) 172px 140px 132px;
   align-items: center;
   gap: 8px;
+}
+.task-row {
+  display: grid;
+}
+/* Column headings only exist where the rows are a sheet (tablet and up). */
+.task-head {
+  display: none;
+}
+@media (min-width: 768px) {
+  .task-head {
+    display: grid;
+  }
 }
 
 /* ---- Estimate editor ---- */
@@ -209,10 +221,24 @@
   grid-template-columns: minmax(0, 1fr);
   grid-template-areas: 'lines' 'summary' 'approval';
 }
+.est-summary > * + * {
+  border-top: 1px solid #e4dcd2;
+}
+@media (min-width: 900px) and (max-width: 1439px) {
+  /* Under the sheet on laptops: rules, cost and client total side by side. */
+  .est-summary {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .est-summary > * + * {
+    border-top: 0;
+    border-left: 1px solid #e4dcd2;
+  }
+}
 @media (min-width: 1440px) {
   /* Room for the sheet and the running total side by side. */
   .est-grid {
-    grid-template-columns: minmax(0, 1fr) 320px;
+    grid-template-columns: minmax(0, 1fr) 300px;
     grid-template-rows: auto 1fr;
     grid-template-areas: 'lines summary' 'approval summary';
     align-items: start;
@@ -297,23 +323,30 @@
     display: grid;
     gap: 4px;
     align-items: center;
-    grid-template-columns: minmax(0, 1fr) 118px 64px 78px 92px 92px 96px 36px;
+    grid-template-columns: minmax(0, 1fr) 128px 58px 86px 88px 90px 94px 32px;
   }
   .est-line {
     padding: 3px 12px;
+    /* A long description wraps; the numbers stay level with its first line. */
+    align-items: start;
     grid-template-areas:
       'desc kind qty unit rate cost price remove'
       'errors errors errors errors errors errors errors errors';
   }
+  .est-line > .c-cost,
+  .est-line > .c-price {
+    padding-top: 9px;
+  }
   .est-line > .c-remove {
     justify-self: center;
-    align-self: center;
+    align-self: start;
   }
   .est-line .cell-label {
     @apply sr-only;
   }
   /* In the sheet the cells are borderless until hovered or focused. */
-  .est-line .cell:not(:hover):not(:focus):not([aria-invalid='true']) {
+  .est-line .cell:not(:hover):not(:focus):not([aria-invalid='true']),
+  .est-line .cell:disabled {
     border-color: transparent;
     background: transparent;
   }
@@ -372,8 +405,13 @@
     --tw-ring-shadow: 0 0 #0000 !important;
     border-radius: 0 !important;
   }
+  /* A section that runs onto a second page repeats its heading… */
   .proposal thead {
     display: table-header-group;
+  }
+  /* …but its subtotal prints once, after the last line, not on every page. */
+  .proposal tfoot {
+    display: table-row-group;
   }
   .proposal tr,
   .proposal .keep-together {

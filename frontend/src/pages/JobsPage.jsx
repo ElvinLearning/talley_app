@@ -70,9 +70,17 @@ function Owner({ job }) {
   return <span className="text-steel">Office</span>
 }
 
-function Due({ job }) {
+function Due({ job, stacked = false }) {
   const info = job.next.kind === 'task' ? dueInfo(job.next.due_date) : null
   if (!info) return <span className="text-steel">—</span>
+  if (info.tone === 'late' && stacked) {
+    return (
+      <span className="text-danger">
+        <span className="block font-semibold">{info.date}</span>
+        <span className="block text-[13px]">{info.late}</span>
+      </span>
+    )
+  }
   return <span className={info.tone === 'late' ? 'font-semibold text-danger' : info.tone === 'today' ? 'font-semibold text-ink' : ''}>{info.label}</span>
 }
 
@@ -272,12 +280,12 @@ export default function JobsPage() {
           <div className="card mt-2 hidden overflow-hidden md:block">
             <table className="jobs-table">
               <colgroup>
-                <col style={{ width: '28%' }} />
+                <col style={{ width: '27%' }} />
                 <col style={{ width: '132px' }} />
                 <col />
                 <col style={{ width: '17%' }} />
-                <col style={{ width: '128px' }} />
-                <col style={{ width: '124px' }} />
+                <col style={{ width: '112px' }} />
+                <col style={{ width: '148px' }} />
               </colgroup>
               <thead>
                 <tr>
@@ -311,7 +319,7 @@ export default function JobsPage() {
                       <td>
                         <span className="flex min-w-0 items-center gap-2">
                           {flag ? <Tag tone={flag.tone}>{flag.label}</Tag> : null}
-                          <span className="truncate">{job.next.label.replace(/^Unblock: /, '')}</span>
+                          <span className="line-clamp-2 min-w-0">{job.next.label.replace(/^Unblock: /, '')}</span>
                         </span>
                         {progress(job) ? <span className="block truncate text-[13px] text-steel">{progress(job)}</span> : null}
                       </td>
@@ -319,7 +327,7 @@ export default function JobsPage() {
                         <Owner job={job} />
                       </td>
                       <td>
-                        <Due job={job} />
+                        <Due job={job} stacked />
                       </td>
                       <td className="tabular text-right">
                         {value ? (

@@ -4,7 +4,7 @@ import Sheet from './Sheet'
 import { Alert, EmptyState, Loading, Tag } from './ui'
 import { request } from '../lib/api'
 import { KINDS } from '../lib/estimateMath'
-import { stampDate } from '../lib/format'
+import { stampDay } from '../lib/format'
 
 const kindLabel = (kind) => KINDS.find((entry) => entry.value === kind)?.label || kind
 const rate = (value) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(value) || 0)
@@ -78,7 +78,7 @@ export default function PriceHistorySheet({ estimateId, sectionName, onAdd, onCl
                   </span>
                   <span className="mt-0.5 block text-[13px] text-steel">
                     Last on {entry.job_name} · Rev {entry.revision}
-                    {entry.state === 'approved' ? ' (approved)' : ' (draft)'} · {stampDate(entry.used_at)}
+                    {entry.state === 'approved' ? ', approved' : ', draft'} · {stampDay(entry.used_at)}
                     {entry.jobs > 1 ? ` · used on ${entry.jobs} jobs` : ''}
                   </span>
                 </span>

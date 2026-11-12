@@ -151,6 +151,9 @@ def test_invalid_pricing(client,field,value):
 
 def test_sessions_csrf_logout_and_expiry(client):
     assert client.post("/api/jobs",json={},headers={"X-Talley-Request":""}).status_code == 403
+    # Pricing data is never cacheable; a missing asset must not be cached as permanent.
+    assert client.get("/api/jobs").headers["cache-control"] == "no-store"
+    assert client.get("/assets/missing.js").headers["cache-control"] == "no-cache"
     client.post("/api/auth/logout")
     assert client.get("/api/jobs").status_code == 401
     login(client)

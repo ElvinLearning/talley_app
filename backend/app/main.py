@@ -48,7 +48,16 @@ async def security_headers(request: Request, call_next):
     if request.method not in ("GET", "HEAD", "OPTIONS") and request.headers.get("x-talley-request") != "1":
         return JSONResponse({"detail": "Missing same-origin request header"}, status_code=403)
     response = await call_next(request)
-    response.headers["Cache-Control"] = "no-store"
+    path = request.url.path
+    if path.startswith("/assets/") and response.status_code == 200:
+        # Vite puts a content hash in these file names, so a file never changes.
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    elif path.startswith("/api/") or path == "/healthz":
+        # Job and pricing data must never be kept by a browser or proxy.
+        response.headers["Cache-Control"] = "no-store"
+    else:
+        # The page shell: reuse it, but check for a newer deploy every time.
+        response.headers["Cache-Control"] = "no-cache"
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     return response
