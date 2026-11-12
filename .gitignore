@@ -28,3 +28,9 @@ data/
 .DS_Store
 .idea/
 .vscode/
+test-results/
+test-artifacts/
+playwright-report/
+.pytest_cache/
+*.db-shm
+*.db-wal

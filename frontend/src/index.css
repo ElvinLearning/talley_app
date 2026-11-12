@@ -10,40 +10,136 @@
   }
 
   body {
-    @apply font-sans text-ink antialiased;
-    background: #2a0f14;
+    @apply bg-sand font-sans text-ink antialiased;
     -webkit-tap-highlight-color: transparent;
+    font-size: 15px;
+    line-height: 1.5;
   }
 
   button {
     -webkit-tap-highlight-color: transparent;
   }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  /* One consistent, clearly visible keyboard focus for every control. */
+  :focus-visible {
+    outline: 2px solid #6d2431;
+    outline-offset: 2px;
+  }
+  main:focus {
+    outline: none;
+  }
 }
 
 @layer components {
   .card {
-    @apply rounded-2xl bg-white shadow-card ring-1 ring-black/[0.06];
+    @apply rounded-xl bg-white shadow-card ring-1 ring-line;
   }
 
   .label {
-    @apply mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.12em] text-steel;
+    @apply mb-1.5 block text-xs font-semibold text-steel;
   }
 
+  /* 16px on phones so iOS does not zoom the page when a field is focused. */
   .field {
-    @apply w-full rounded-xl border border-black/10 bg-white px-3.5 py-3 text-[15px] text-ink outline-none transition placeholder:text-steel/60 focus:border-maroon/40 focus:ring-2 focus:ring-maroon/15;
+    @apply min-w-0 max-w-full w-full rounded-lg border border-[#CFC6BB] bg-white px-3 py-2.5 text-base text-ink transition placeholder:text-steel/70 md:text-[15px];
+  }
+  .field:focus {
+    @apply border-maroon outline-none ring-2 ring-maroon/20;
+  }
+  .field:disabled {
+    @apply cursor-not-allowed bg-paper text-ink/80;
+  }
+  .field[aria-invalid='true'] {
+    @apply border-danger ring-2 ring-danger/15;
   }
 
+  .btn {
+    @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 md:min-h-[40px];
+  }
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-maroon px-4 py-3 text-sm font-semibold text-white shadow-sm transition active:bg-maroon-dark disabled:opacity-50;
+    @apply btn bg-maroon text-white shadow-sm hover:bg-maroon-dark active:bg-maroon-dark;
   }
-
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-black/10 bg-white px-4 py-3 text-sm font-semibold text-ink transition active:bg-black/5;
+    @apply btn border border-[#CFC6BB] bg-white text-ink hover:bg-paper active:bg-sand;
+  }
+  .btn-quiet {
+    @apply btn px-3 text-maroon hover:bg-maroon-tint active:bg-maroon-tint;
   }
 
   .eyebrow {
-    @apply text-[10.5px] font-semibold uppercase tracking-[0.16em];
+    @apply text-[11px] font-semibold uppercase tracking-[0.14em];
   }
+
+  .section-title {
+    @apply text-base font-semibold text-ink;
+  }
+
+  .page-title {
+    @apply font-serif text-[26px] leading-tight text-ink sm:text-[30px];
+  }
+
+  .chip {
+    @apply inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold leading-none;
+  }
+
+  .link {
+    @apply font-semibold text-maroon underline decoration-maroon/30 underline-offset-2 hover:decoration-maroon;
+  }
+
+  /* Sheet-style cell: reads as text until hovered or focused. */
+  .cell {
+    @apply w-full min-w-0 rounded-md border border-transparent bg-transparent px-2 py-2 text-base text-ink transition placeholder:text-steel/60 md:text-sm;
+  }
+  .cell:hover:not(:disabled) {
+    @apply border-[#CFC6BB] bg-white;
+  }
+  .cell:focus {
+    @apply border-maroon bg-white outline-none ring-2 ring-maroon/20;
+  }
+  .cell:disabled {
+    @apply cursor-default text-ink opacity-100;
+  }
+  .cell[aria-invalid='true'] {
+    @apply border-danger bg-danger-tint;
+  }
+  select.cell {
+    @apply cursor-pointer pr-1;
+  }
+}
+
+.workspace {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 28px 32px 56px;
+}
+
+.workspace-sidebar { background: linear-gradient(180deg, #fff 65%, #fcfaf7); }
+.day-banner {
+  position: relative;
+  overflow: hidden;
+  padding: 32px;
+  border-radius: 18px;
+  color: white;
+  background: linear-gradient(115deg, #481923, #6d2431 65%, #814352);
+  box-shadow: 0 12px 32px #4b162016;
+}
+.blueprint { position: absolute; inset: 0 0 0 48%; opacity: .16; background-image: linear-gradient(#ffffff44 1px, transparent 1px), linear-gradient(90deg, #ffffff44 1px, transparent 1px); background-size: 28px 28px; transform: rotate(-12deg) scale(1.4); mask-image: linear-gradient(90deg, transparent, black); }
+.blueprint span { position: absolute; border: 2px solid white; width: 160px; height: 130px; right: 14%; top: 22%; }
+.blueprint span:nth-child(2) { width: 80px; height: 80px; right: 39%; top: 48%; }
+.blueprint span:nth-child(3) { width: 110px; height: 90px; right: 9%; top: 61%; }
+.focus-row { display: flex; align-items: center; gap: 16px; padding: 20px; transition: background .15s; }
+.focus-row:hover { background: #fcfaf7; }
+.focus-number { align-self: flex-start; padding-top: 2px; color: #8a6c67; font-family: Georgia, serif; font-size: 22px; }
+@media (max-width: 600px) {
+  .day-banner { padding: 24px; }
+  .blueprint { opacity: .09; }
+  .focus-row { padding: 16px; gap: 12px; }
 }
 
 .no-scrollbar {
@@ -57,18 +153,316 @@
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
 }
 
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.skip-link {
+  position: absolute;
+  left: 12px;
+  top: -60px;
+  z-index: 100;
+  border-radius: 8px;
+  background: #241b1c;
+  padding: 10px 14px;
+  color: #fff;
+  font-weight: 600;
+}
+.skip-link:focus {
+  top: 12px;
+}
+
 .sheet-panel {
-  animation: sheet-in 220ms cubic-bezier(0.2, 0.9, 0.3, 1);
+  animation: sheet-in 200ms cubic-bezier(0.2, 0.9, 0.3, 1);
 }
 
 .fade-in {
-  animation: fade-in 200ms ease-out;
+  animation: fade-in 160ms ease-out;
+}
+
+/* ---- Jobs sheet ---- */
+.jobs-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.jobs-table th {
+  @apply border-b border-line bg-paper px-4 py-2.5 text-left text-xs font-semibold text-steel;
+}
+.jobs-table td {
+  @apply border-b border-line px-4 py-3 align-middle;
+}
+.jobs-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.jobs-table tbody tr {
+  cursor: pointer;
+}
+.jobs-table tbody tr:hover {
+  @apply bg-paper;
+}
+
+/* ---- Job page: tasks and estimates beside customer, scope, budget and access ---- */
+.job-grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: 'customer' 'main' 'side';
+}
+@media (min-width: 1280px) {
+  .job-grid {
+    grid-template-columns: minmax(0, 1fr) 340px;
+    grid-template-rows: auto 1fr;
+    grid-template-areas: 'main customer' 'main side';
+  }
+}
+
+/* ---- Task sheet (inside a job) ---- */
+.task-row,
+.task-head {
+  grid-template-columns: minmax(0, 1fr) 172px 140px 132px;
+  align-items: center;
+  gap: 8px;
+}
+.task-row {
+  display: grid;
+}
+/* Column headings only exist where the rows are a sheet (tablet and up). */
+.task-head {
+  display: none;
+}
+@media (min-width: 768px) {
+  .task-head {
+    display: grid;
+  }
+}
+
+/* ---- Estimate editor ---- */
+.est-grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: 'lines' 'summary' 'approval';
+}
+.est-summary > * + * {
+  border-top: 1px solid #e4dcd2;
+}
+@media (min-width: 900px) and (max-width: 1439px) {
+  /* Under the sheet on laptops: rules, cost and client total side by side. */
+  .est-summary {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .est-summary > * + * {
+    border-top: 0;
+    border-left: 1px solid #e4dcd2;
+  }
+}
+@media (min-width: 1440px) {
+  /* Room for the sheet and the running total side by side. */
+  .est-grid {
+    grid-template-columns: minmax(0, 1fr) 300px;
+    grid-template-rows: auto 1fr;
+    grid-template-areas: 'lines summary' 'approval summary';
+    align-items: start;
+    margin-bottom: 56px;
+  }
+  .est-summary {
+    position: sticky;
+    top: 104px;
+  }
+  .est-bar {
+    display: none;
+  }
+}
+
+/* Estimate lines. Three layouts chosen by the width actually available:
+   stacked card (phones), two-row card (tablets), one sheet row (desktop). */
+.est-sections {
+  container-type: inline-size;
+}
+.est-head {
+  display: none;
+}
+.est-line {
+  display: grid;
+  gap: 8px 10px;
+  align-items: end;
+  padding: 12px 12px;
+  border-top: 1px solid #e4dcd2;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-areas:
+    'desc desc desc desc desc remove'
+    'kind kind kind unit unit unit'
+    'qty qty qty rate rate rate'
+    'cost cost cost price price price'
+    'errors errors errors errors errors errors';
+}
+.est-line > .c-desc { grid-area: desc; }
+.est-line > .c-kind { grid-area: kind; }
+.est-line > .c-qty { grid-area: qty; }
+.est-line > .c-unit { grid-area: unit; }
+.est-line > .c-rate { grid-area: rate; }
+.est-line > .c-cost { grid-area: cost; padding: 0 8px; }
+.est-line > .c-price { grid-area: price; padding: 0 8px; }
+.est-line > .c-remove { grid-area: remove; justify-self: end; align-self: end; }
+.est-line > .c-errors { grid-area: errors; }
+.est-line .cell-label {
+  margin-bottom: 2px;
+  padding-left: 8px;
+}
+/* On cards the cells are boxed so they read as fields. */
+.est-line .cell {
+  border-color: #cfc6bb;
+  background: #fff;
+}
+.est-line .cell:disabled {
+  border-color: #e4dcd2;
+  background: #fcfaf7;
+}
+.est-line .cell:focus {
+  border-color: #6d2431;
+}
+.est-line .cell[aria-invalid='true'] {
+  border-color: #a32a1b;
+  background: #fbedea;
+}
+@container (min-width: 520px) {
+  .est-line {
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.7fr) minmax(0, 0.9fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) 36px;
+    grid-template-areas:
+      'desc desc desc desc desc desc remove'
+      'kind qty unit rate cost price .'
+      'errors errors errors errors errors errors errors';
+  }
+  .est-line > .c-cost,
+  .est-line > .c-price {
+    text-align: right;
+  }
+}
+@container (min-width: 800px) {
+  .est-head,
+  .est-line {
+    display: grid;
+    gap: 4px;
+    align-items: center;
+    grid-template-columns: minmax(0, 1fr) 128px 58px 86px 88px 90px 94px 32px;
+  }
+  .est-line {
+    padding: 3px 12px;
+    /* A long description wraps; the numbers stay level with its first line. */
+    align-items: start;
+    grid-template-areas:
+      'desc kind qty unit rate cost price remove'
+      'errors errors errors errors errors errors errors errors';
+  }
+  .est-line > .c-cost,
+  .est-line > .c-price {
+    padding-top: 9px;
+  }
+  .est-line > .c-remove {
+    justify-self: center;
+    align-self: start;
+  }
+  .est-line .cell-label {
+    @apply sr-only;
+  }
+  /* In the sheet the cells are borderless until hovered or focused. */
+  .est-line .cell:not(:hover):not(:focus):not([aria-invalid='true']),
+  .est-line .cell:disabled {
+    border-color: transparent;
+    background: transparent;
+  }
+}
+
+@media (max-width: 767px) {
+  .workspace {
+    padding: 20px 16px 40px;
+  }
+}
+
+@media (min-width: 768px) {
+  .sheet-panel {
+    width: min(600px, 100%);
+    margin: 0 auto;
+  }
+}
+
+/* ---- Printing the client estimate ---- */
+@page {
+  size: letter;
+  margin: 0.6in 0.65in 0.75in;
+  @bottom-right {
+    content: 'Page ' counter(page) ' of ' counter(pages);
+    font: 9pt -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
+    color: #655f5d;
+  }
+}
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  html,
+  body,
+  #root,
+  #app-shell,
+  #app-shell > div,
+  main {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+  body {
+    font-size: 10.5pt;
+  }
+  .workspace {
+    max-width: none;
+    padding: 0;
+  }
+  .proposal {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    --tw-ring-shadow: 0 0 #0000 !important;
+    border-radius: 0 !important;
+  }
+  /* A section that runs onto a second page repeats its heading… */
+  .proposal thead {
+    display: table-header-group;
+  }
+  /* …but its subtotal prints once, after the last line, not on every page. */
+  .proposal tfoot {
+    display: table-row-group;
+  }
+  .proposal tr,
+  .proposal .keep-together {
+    break-inside: avoid;
+  }
+  .proposal h3 {
+    break-after: avoid;
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 @keyframes sheet-in {
   from {
-    transform: translateY(18px);
-    opacity: 0.7;
+    transform: translateY(16px);
+    opacity: 0.6;
   }
   to {
     transform: translateY(0);

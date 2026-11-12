@@ -4,7 +4,7 @@ import os
 import sqlite3
 from datetime import date, datetime, timedelta
 
-DB_PATH = os.environ.get("DATABASE_PATH", "/data/talley.db")
+DB_PATH = os.environ.get("DATABASE_PATH", "data/talley.db")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS team (
@@ -256,6 +256,9 @@ def init_db() -> None:
     try:
         conn.executescript(SCHEMA)
         conn.commit()
+        # Existing records are preserved. Historical fictional seed is opt-in.
+        if os.environ.get("SEED_LEGACY_DEMO") != "1":
+            return
         if conn.execute("SELECT COUNT(*) AS c FROM boards").fetchone()["c"] > 0:
             return
         conn.executemany(
