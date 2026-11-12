@@ -23,7 +23,8 @@ SELECT b.*,
     (SELECT COUNT(*) FROM items i JOIN groups g ON i.group_id = g.id WHERE g.board_id = b.id AND i.status = 'done') AS done_items,
     (SELECT COUNT(*) FROM items i JOIN groups g ON i.group_id = g.id WHERE g.board_id = b.id AND i.status = 'blocked') AS blocked_items,
     (SELECT COUNT(*) FROM items i JOIN groups g ON i.group_id = g.id WHERE g.board_id = b.id AND i.status != 'done') AS open_items,
-    (SELECT COALESCE(SUM(i.cost), 0) FROM items i JOIN groups g ON i.group_id = g.id WHERE g.board_id = b.id) AS committed
+    (SELECT COALESCE(SUM(i.cost), 0) FROM items i JOIN groups g ON i.group_id = g.id WHERE g.board_id = b.id) AS committed,
+    (SELECT o.job_id FROM project_origins o WHERE o.board_id = b.id) AS job_id
 FROM boards b
 """
 
@@ -55,6 +56,11 @@ public_app.include_router(workflow_router)
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _short_day(iso: str) -> str:
+    day = date.fromisoformat(iso[:10])
+    return f"{day:%b} {day.day}"
 
 
 class BoardIn(BaseModel):
@@ -96,9 +102,9 @@ class ItemIn(BaseModel):
 
 
 class ItemPatch(BaseModel):
-    name: Optional[str] = None
+    name: Optional[str] = Field(default=None, min_length=1, max_length=300)
     status: Optional[str] = None
-    owner: Optional[str] = None
+    owner: Optional[str] = Field(default=None, max_length=200)
     start_date: Optional[str] = None
     due_date: Optional[date] = None
     cost: Optional[float] = Field(default=None, ge=0, le=1e10, allow_inf_nan=False)
@@ -208,7 +214,7 @@ def get_board(board_id: int):
         board["activity"] = [
             dict(row)
             for row in conn.execute(
-                "SELECT * FROM activity WHERE board_id = ? ORDER BY id DESC LIMIT 8", (board_id,)
+                "SELECT * FROM activity WHERE board_id = ? ORDER BY id DESC LIMIT 20", (board_id,)
             ).fetchall()
         ]
         return board
@@ -350,8 +356,14 @@ def patch_item(item_id: int, payload: ItemPatch):
                     conn,
                     board_id,
                     f"{previous['name']} moved to {fields['status'].replace('_', ' ')}",
-                    "blocked" if fields["status"] == "blocked" else "update",
+                    "blocked" if fields["status"] == "blocked" else "done" if fields["status"] == "done" else "update",
                 )
+            if "owner" in fields and fields["owner"] != previous["owner"]:
+                _activity(conn, board_id, f"{previous['name']} assigned to {fields['owner']}" if fields["owner"]
+                          else f"{previous['name']} is unassigned")
+            if "due_date" in fields and fields["due_date"] != previous["due_date"]:
+                _activity(conn, board_id, f"{previous['name']} due {_short_day(fields['due_date'])}"
+                          if fields["due_date"] else f"{previous['name']} due date cleared")
             conn.commit()
         return dict(conn.execute("SELECT * FROM items WHERE id = ?", (item_id,)).fetchone())
     finally:

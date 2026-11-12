@@ -1,6 +1,7 @@
 import json
 from contextlib import closing
 from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
 from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import Field
@@ -56,35 +57,88 @@ def job_snapshot(conn, job_id):
     job["customer"] = require(conn, "customers", job["customer_id"])
     return job
 
-def job_detail(conn, job_id):
-    job = job_snapshot(conn, job_id)
-    job["estimates"] = [dict(r) for r in conn.execute(
-        "SELECT id,revision,state,version,approved_by,approved_at FROM estimates WHERE job_id=? ORDER BY revision DESC", (job_id,))]
-    origin = conn.execute("SELECT * FROM project_origins WHERE job_id=?", (job_id,)).fetchone()
-    job["project"] = {**{k: origin[k] for k in ("board_id","estimate_id","budget_cents","contract_cents")},
-                      "scope": json.loads(origin["snapshot"])["job"]["scope"]} if origin else None
+TASK_LABEL = {"not_started": "Not started", "in_progress": "In progress", "blocked": "Blocked",
+              "review": "Review", "done": "Done"}
+
+def next_step(job, estimates, origin, task):
+    """The single next step for a job: structured for the list, plus one sentence."""
     if job["status"] == "complete":
-        job["next_action"] = "Job complete"
+        step = dict(kind="complete", label="Job complete")
     elif job["status"] == "on_hold":
-        job["next_action"] = "Review hold and resume work"
+        step = dict(kind="hold", label="On hold — review and resume")
+    elif origin and task:
+        blocked = task["status"] == "blocked"
+        step = dict(kind="task", label=("Unblock: " if blocked else "") + task["name"], task_id=task["id"],
+                    owner=task["owner"] or None, due_date=task["due_date"], blocked=blocked)
     elif origin:
-        task = conn.execute("""SELECT i.name,i.owner,i.due_date,i.status FROM items i
-          JOIN groups g ON g.id=i.group_id WHERE g.board_id=? AND i.status!='done'
-          ORDER BY CASE i.status WHEN 'blocked' THEN 0 ELSE 1 END, i.due_date IS NULL, i.due_date, i.id LIMIT 1""",
-          (origin["board_id"],)).fetchone()
-        job["next_action"] = (("Unblock: " if task["status"] == "blocked" else "") + task["name"]
-                              + (" · " + task["owner"] if task["owner"] else " · Assign owner")
-                              + (" · Due " + task["due_date"] if task["due_date"] else "")) if task else "Plan tasks or close out job"
+        step = dict(kind="plan", label="Add tasks or close out the job")
+    elif estimates and estimates[0]["state"] == "approved":
+        step = dict(kind="convert", label="Create project from approved estimate", estimate_id=estimates[0]["id"])
+    elif estimates:
+        step = dict(kind="estimate", label="Finish estimate and record approval", estimate_id=estimates[0]["id"])
     else:
-        latest = job["estimates"][0] if job["estimates"] else None
-        job["next_action"] = "Convert approved estimate" if latest and latest["state"] == "approved" else (
-            "Finish estimate and record approval" if latest else "Build first estimate")
+        step = dict(kind="start", label="Build the first estimate")
+    sentence = step["label"]
+    if step["kind"] == "task":
+        sentence += " · " + step["owner"] if step["owner"] else " · Assign owner"
+        sentence += " · Due " + step["due_date"] if step["due_date"] else ""
+    return step, sentence
+
+def job_records(conn, job_id=None):
+    """Jobs with customer, estimates, project baseline, task counts and next step.
+
+    Runs a fixed number of queries however many jobs exist.
+    """
+    where, args = ("WHERE j.id=?", (job_id,)) if job_id is not None else ("", ())
+    scope = "WHERE job_id=?" if job_id is not None else ""
+    jobs = [dict(r) for r in conn.execute(f"SELECT j.* FROM jobs j {where} ORDER BY j.id DESC", args)]
+    customers = {r["id"]: dict(r) for r in conn.execute(
+        f"SELECT * FROM customers WHERE id IN (SELECT customer_id FROM jobs j {where})", args)}
+    estimates, origins, tasks = {}, {}, {}
+    for r in conn.execute(f"""SELECT id,job_id,revision,state,version,approved_by,approved_at,
+          json_extract(document,'$.totals.total_cents') AS total_cents,
+          COALESCE(json_extract(document,'$.saved_at'),created_at) AS saved_at
+          FROM estimates {scope} ORDER BY revision DESC""", args):
+        row = dict(r)
+        estimates.setdefault(row.pop("job_id"), []).append(row)
+    for r in conn.execute(
+            f"SELECT job_id,board_id,estimate_id,budget_cents,contract_cents FROM project_origins {scope}", args):
+        origins[r["job_id"]] = dict(r)
+    for r in conn.execute(f"""SELECT g.board_id,i.id,i.name,i.owner,i.due_date,i.status FROM items i
+          JOIN groups g ON g.id=i.group_id
+          WHERE g.board_id IN (SELECT board_id FROM project_origins {scope}) ORDER BY i.id""", args):
+        tasks.setdefault(r["board_id"], []).append(dict(r))
+    for job in jobs:
+        job["customer"] = customers[job["customer_id"]]
+        job["estimates"] = estimates.get(job["id"], [])
+        origin = origins.get(job["id"])
+        job["project"] = ({k: origin[k] for k in ("board_id", "estimate_id", "budget_cents", "contract_cents")}
+                          if origin else None)
+        items = tasks.get(origin["board_id"], []) if origin else []
+        pending = sorted((t for t in items if t["status"] != "done"),
+                         key=lambda t: (t["status"] != "blocked", t["due_date"] is None, t["due_date"] or "", t["id"]))
+        job["tasks"] = dict(
+            total=len(items), done=len(items) - len(pending),
+            blocked=sum(t["status"] == "blocked" for t in pending),
+            unassigned=sum(not t["owner"] for t in pending),
+            earliest_due=min((t["due_date"] for t in pending if t["due_date"]), default=None)) if origin else None
+        job["next"], job["next_action"] = next_step(job, job["estimates"], origin, pending[0] if pending else None)
+    return jobs
+
+def job_detail(conn, job_id):
+    found = job_records(conn, job_id)
+    if not found:
+        raise HTTPException(404, "Record not found")
+    job = found[0]
+    if job["project"]:
+        snapshot = conn.execute("SELECT snapshot FROM project_origins WHERE job_id=?", (job_id,)).fetchone()["snapshot"]
+        job["project"]["scope"] = json.loads(snapshot)["job"]["scope"]
     return job
 
 @router.get("/jobs", dependencies=[Depends(admin)])
 def jobs():
     with closing(connect()) as conn:
-        return [job_detail(conn, row["id"]) for row in conn.execute("SELECT id FROM jobs ORDER BY id DESC")]
+        return job_records(conn)
 
 @router.get("/jobs/{job_id}", dependencies=[Depends(admin)])
 def job_get(job_id: int):
@@ -125,12 +179,13 @@ def estimate_create(job_id: int):
         document = json.loads(latest["document"]) if latest else {
             "markup_percent": "0", "tax_percent": "0", "tax_basis": "none", "notes": "",
             "sections": [{"name": "Scope of work", "lines": [
-                {"description": "Describe work", "kind": "labor", "quantity": "1", "unit": "hour", "unit_cost": "0",
+                {"description": "", "kind": "labor", "quantity": "1", "unit": "hour", "unit_cost": "0",
                  "cost_cents": 0, "markup_cents": 0, "price_cents": 0}], "price_cents": 0}],
             "totals": dict(cost_cents=0, markup_cents=0, subtotal_cents=0, taxable_cents=0, tax_cents=0, total_cents=0)
         }
         if not latest:
             document["job"] = job
+        document["saved_at"] = now()
         id = conn.execute("""INSERT INTO estimates(job_id,revision,state,document,created_at)
           VALUES(?,?,'draft',?,?)""", (job_id, latest["revision"]+1 if latest else 1, json.dumps(document), now())).lastrowid
         if not conn.execute("SELECT 1 FROM project_origins WHERE job_id=?", (job_id,)).fetchone():
@@ -153,15 +208,53 @@ def estimate_save(id: int, payload: EstimateIn):
         document["job"] = job_snapshot(conn, estimate["job_id"])
         if payload.scope is not None:
             document["job"]["scope"] = payload.scope
+        # Kept inside the document so an approved revision freezes its own date.
+        document["saved_at"] = now()
         conn.execute("UPDATE estimates SET document=?,version=version+1 WHERE id=?", (json.dumps(document), id))
+        conn.execute("UPDATE jobs SET updated_at=? WHERE id=?", (document["saved_at"], estimate["job_id"]))
         return estimate_detail(conn, id)
 
 @router.get("/estimates/{id}/preview", dependencies=[Depends(admin)])
 def estimate_preview(id: int):
     with closing(connect()) as conn:
         estimate = estimate_detail(conn, id)
-        return dict(id=id, revision=estimate["revision"], state=estimate["state"], approved_by=estimate["approved_by"],
-                    approved_at=estimate["approved_at"], document=client_document(estimate["document"]))
+        return dict(id=id, job_id=estimate["job_id"], revision=estimate["revision"], state=estimate["state"],
+                    approved_by=estimate["approved_by"], approved_at=estimate["approved_at"],
+                    prepared_at=estimate["document"].get("saved_at") or estimate["created_at"],
+                    document=client_document(estimate["document"]))
+
+@router.get("/price-history", dependencies=[Depends(admin)])
+def price_history(exclude: int | None = None):
+    """Lines already priced on this company's saved estimates, newest first.
+
+    Nothing is generated. Each entry is the most recent unit cost entered for that
+    description, type and unit. These are internal costs: administrators only.
+    """
+    with closing(connect()) as conn:
+        found = {}
+        for row in conn.execute("""SELECT e.id,e.job_id,e.revision,e.state,e.document,e.created_at,j.name AS job_name
+              FROM estimates e JOIN jobs j ON j.id=e.job_id ORDER BY e.id DESC LIMIT 300"""):
+            if row["id"] == exclude:
+                continue
+            document = json.loads(row["document"])
+            for section in document.get("sections", []):
+                for line in section.get("lines", []):
+                    try:
+                        priced = Decimal(str(line["unit_cost"])) > 0
+                    except (InvalidOperation, KeyError):
+                        priced = False
+                    if not priced:
+                        continue
+                    key = (line["description"].casefold(), line["kind"], line["unit"].casefold())
+                    if key in found:
+                        found[key]["job_ids"].add(row["job_id"])
+                        continue
+                    found[key] = dict(description=line["description"], kind=line["kind"], unit=line["unit"],
+                                      unit_cost=str(line["unit_cost"]), job_name=row["job_name"],
+                                      revision=row["revision"], state=row["state"],
+                                      used_at=document.get("saved_at") or row["created_at"], job_ids={row["job_id"]})
+        return [{**{k: v for k, v in entry.items() if k != "job_ids"}, "jobs": len(entry["job_ids"])}
+                for entry in list(found.values())[:500]]
 
 @router.post("/estimates/{id}/approve")
 def estimate_approve(id: int, payload: Approval, user=Depends(admin)):
@@ -240,13 +333,18 @@ def my_work(user=Depends(current_user)):
         ids = conn.execute("SELECT board_id FROM board_assignments WHERE user_id=?", (user["id"],)).fetchall()
         return [work_detail(conn,row["board_id"],user) for row in ids]
 
+# The only task fields a field worker ever receives: no prices or internal figures.
+FIELD_TASK = """SELECT i.id,i.name,i.status,i.owner,i.due_date,i.notes,i.updated_at,g.name AS section
+      FROM items i JOIN groups g ON g.id=i.group_id"""
+
 def work_detail(conn, board_id, user):
     board = worker_board(conn,board_id,user)
     result = {k: board[k] for k in ("id","name","address","client")}
     origin = conn.execute("SELECT snapshot FROM project_origins WHERE board_id=?", (board_id,)).fetchone()
     result["scope"] = json.loads(origin["snapshot"])["job"]["scope"] if origin else ""
-    result["tasks"] = [dict(r) for r in conn.execute("""SELECT i.id,i.name,i.status,i.owner,i.due_date,i.notes,g.name AS section
-      FROM items i JOIN groups g ON g.id=i.group_id WHERE g.board_id=? ORDER BY i.due_date IS NULL,i.due_date,i.id""", (board_id,))]
+    team = conn.execute("SELECT name FROM team WHERE id=?", (user["team_id"],)).fetchone()
+    result["tasks"] = [{**dict(r), "mine": bool(team) and r["owner"] == team["name"]} for r in conn.execute(
+        FIELD_TASK + " WHERE g.board_id=? ORDER BY i.due_date IS NULL,i.due_date,i.id", (board_id,))]
     return result
 
 @router.get("/work/{board_id}")
@@ -270,6 +368,12 @@ def field_update(board_id: int, task_id: int, payload: FieldUpdate, user=Depends
         if user["role"] != "admin" and (not team or item["owner"] != team["name"]):
             raise HTTPException(403, "Only the assigned task owner can update this task")
         conn.execute("UPDATE items SET status=?,notes=?,updated_at=? WHERE id=?", (payload.status,payload.notes,now(),task_id))
-        conn.execute("INSERT INTO activity(board_id,message,kind,created_at) VALUES(?,?,'update',?)",
-                     (board_id,f"{user['name']} updated {item['name']} to {payload.status}",now()))
-        return {"ok": True}
+        if payload.status != item["status"]:
+            conn.execute("INSERT INTO activity(board_id,message,kind,created_at) VALUES(?,?,?,?)",
+                         (board_id, f"{user['name']} moved {item['name']} to {TASK_LABEL[payload.status]}",
+                          payload.status if payload.status in ("blocked", "done") else "update", now()))
+        elif payload.notes != item["notes"]:
+            conn.execute("INSERT INTO activity(board_id,message,kind,created_at) VALUES(?,?,'update',?)",
+                         (board_id, f"{user['name']} added a note on {item['name']}", now()))
+        saved = conn.execute(FIELD_TASK + " WHERE i.id=?", (task_id,)).fetchone()
+        return {**dict(saved), "mine": True, "ok": True}

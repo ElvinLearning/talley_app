@@ -48,6 +48,14 @@ identity provisioning/reset/MFA are not implemented.
 On macOS/Linux, use `.venv/bin/python`, export the same environment variables and
 otherwise run the same Python/npm commands.
 
+### Optional local demo autofill
+
+In ignored `frontend/.env.local`, set `VITE_DEMO_AUTOFILL=1`,
+`VITE_DEMO_USERNAME` and `VITE_DEMO_PASSWORD` to the synthetic demo account.
+Restart Vite if needed. This only prefills the login form; authentication still
+runs normally. The `import.meta.env.DEV` guard disables autofill in production
+builds. Never use real account credentials in client-side Vite variables.
+
 ## Add the sample job
 
 With the backend running, set `TALLEY_DEMO_PASSWORD` to the same value in another

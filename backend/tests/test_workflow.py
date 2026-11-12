@@ -174,3 +174,76 @@ def test_status_cannot_bypass_approval_and_can_resume_project(client):
     client.post(f"/api/estimates/{e['id']}/convert")
     for status in ("on_hold","active","complete"):
         assert client.patch(f"/api/jobs/{j['id']}/status",json={"status":status}).json()["status"] == status
+
+def test_job_list_is_structured_for_the_workspace(client):
+    j,e=approved(client)
+    listed=next(x for x in client.get("/api/jobs").json() if x["id"]==j["id"])
+    assert listed["next"]["kind"] == "convert" and listed["next"]["estimate_id"] == e["id"]
+    assert listed["estimates"][0]["total_cents"] == 133740 and listed["tasks"] is None
+    bid=client.post(f"/api/estimates/{e['id']}/convert").json()["board_id"]
+    assert client.get(f"/api/jobs/{j['id']}").json()["next"]["kind"] == "plan"
+    group=client.get(f"/api/boards/{bid}").json()["groups"][0]["id"]
+    client.post(f"/api/groups/{group}/items",json={"name":"Later task","owner":"Demo field worker","due_date":"2026-12-01"})
+    stuck=client.post(f"/api/groups/{group}/items",json={"name":"Waiting on permit","status":"blocked"}).json()
+    finished=client.post(f"/api/groups/{group}/items",json={"name":"Walkthrough","status":"done"}).json()
+    listed=next(x for x in client.get("/api/jobs").json() if x["id"]==j["id"])
+    assert listed["next"] == dict(kind="task",label="Unblock: Waiting on permit",task_id=stuck["id"],owner=None,due_date=None,blocked=True)
+    assert listed["tasks"] == dict(total=3,done=1,blocked=1,unassigned=1,earliest_due="2026-12-01")
+    assert "scope" not in listed["project"] and listed["project"]["board_id"] == bid
+    client.patch(f"/api/items/{stuck['id']}",json={"status":"done"})
+    detail=client.get(f"/api/jobs/{j['id']}").json()
+    assert detail["next"]["label"] == "Later task" and detail["next"]["owner"] == "Demo field worker"
+    assert detail["next_action"] == "Later task · Demo field worker · Due 2026-12-01"
+    assert detail["project"]["scope"] == "Synthetic kitchen scope"
+    assert client.get(f"/api/boards/{bid}").json()["job_id"] == j["id"]
+    assert finished["status"] == "done" and client.get("/api/jobs/999999").status_code == 404
+
+def test_price_history_reuses_saved_costs_for_administrators_only(client):
+    _,first=saved(client)
+    j2=fixture_job(client)
+    e2=client.post(f"/api/jobs/{j2['id']}/estimates").json()
+    newer=pricing();newer["sections"][0]["lines"][1]["unit_cost"]="4.10"
+    client.put(f"/api/estimates/{e2['id']}",json=newer)
+    history=client.get("/api/price-history").json()
+    tile=next(h for h in history if h["description"]=="Tile")
+    assert tile["unit_cost"] == "4.10" and tile["kind"] == "material" and tile["unit"] == "sq ft" and tile["jobs"] == 2
+    assert not any(h["description"]=="Describe work" for h in history)
+    # The estimate being edited is not its own history.
+    assert next(h for h in client.get(f"/api/price-history?exclude={e2['id']}").json() if h["description"]=="Tile")["unit_cost"] == "3.25"
+    login(client,"worker.demo")
+    assert client.get("/api/price-history").status_code == 403
+
+def test_field_update_returns_only_field_data_and_logs_activity(client):
+    j,e=approved(client)
+    bid=client.post(f"/api/estimates/{e['id']}/convert").json()["board_id"]
+    group=client.get(f"/api/boards/{bid}").json()["groups"][0]["id"]
+    worker=next(w for w in client.get("/api/workers").json() if w["name"]=="Demo field worker")
+    client.put(f"/api/boards/{bid}/assignments",json={"user_ids":[worker["id"]]})
+    task=client.post(f"/api/groups/{group}/items",json={"name":"Measure site","owner":worker["name"],"cost":750}).json()
+    client.post(f"/api/groups/{group}/items",json={"name":"Order tile","owner":"Demo administrator","cost":900})
+    login(client,"worker.demo")
+    mine={t["name"]:t["mine"] for t in client.get(f"/api/work/{bid}").json()["tasks"]}
+    assert mine == {"Measure site":True,"Order tile":False}
+    r=client.patch(f"/api/work/{bid}/tasks/{task['id']}",json={"status":"blocked","notes":"Gate is locked"})
+    assert r.status_code == 200
+    body=r.json()
+    assert body["status"] == "blocked" and body["notes"] == "Gate is locked" and body["mine"] is True
+    assert set(body) == {"id","name","status","owner","due_date","notes","updated_at","section","mine","ok"}
+    client.patch(f"/api/work/{bid}/tasks/{task['id']}",json={"status":"blocked","notes":"Gate is still locked"})
+    login(client)
+    messages=[a["message"] for a in client.get(f"/api/boards/{bid}").json()["activity"]]
+    assert "Demo field worker moved Measure site to Blocked" in messages
+    assert "Demo field worker added a note on Measure site" in messages
+    client.patch(f"/api/items/{task['id']}",json={"owner":"Demo administrator","due_date":"2026-11-20"})
+    messages=[a["message"] for a in client.get(f"/api/boards/{bid}").json()["activity"]]
+    assert "Measure site assigned to Demo administrator" in messages and "Measure site due Nov 20" in messages
+    assert client.patch(f"/api/items/{task['id']}",json={"name":""}).status_code == 422
+
+def test_saved_date_is_frozen_with_the_approved_revision(client):
+    j,e=saved(client)
+    stamp=e["document"]["saved_at"]
+    preview=client.get(f"/api/estimates/{e['id']}/preview").json()
+    assert preview["prepared_at"] == stamp and preview["job_id"] == j["id"]
+    done=client.post(f"/api/estimates/{e['id']}/approve",json={"version":e["version"],"approved_by":"C","note":"Demo"}).json()
+    assert done["document"]["saved_at"] == stamp
+    assert client.get(f"/api/estimates/{e['id']}/preview").json()["prepared_at"] == stamp

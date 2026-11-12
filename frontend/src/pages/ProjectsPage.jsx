@@ -1,130 +1,109 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ChevronRight, MapPin, Plus, Search } from 'lucide-react'
-import Logo from '../components/Logo'
 import NewProjectSheet from '../components/NewProjectSheet'
 import ProgressBar from '../components/ProgressBar'
-import { money } from '../lib/format'
+import { BackLink, EmptyState, LoadError, Loading, Tag } from '../components/ui'
+import { api } from '../lib/api'
+import { moneyFull } from '../lib/format'
+import { href } from '../lib/router'
 
-function ProjectCard({ board, onOpen }) {
+function ProjectCard({ board }) {
   const total = Number(board.total_items) || 0
   const done = Number(board.done_items) || 0
   const blocked = Number(board.blocked_items) || 0
-  const percent = total ? (done / total) * 100 : 0
+  // Boards that came from an approved estimate open on their job page.
+  const to = board.job_id ? `/jobs/${board.job_id}` : `/boards/${board.id}`
 
   return (
-    <button
-      type="button"
-      onClick={() => onOpen(board.id)}
-      className="card w-full p-4 text-left transition active:scale-[0.995] active:bg-paper"
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="eyebrow truncate text-maroon/70">{board.client || 'Internal'}</p>
-          <h3 className="mt-1 font-serif text-[16.5px] leading-snug text-ink">{board.name}</h3>
-        </div>
-        <ChevronRight size={16} className="mt-1 shrink-0 text-steel/50" />
-      </div>
-
+    <a href={href(to)} className="card block p-4 transition hover:bg-paper">
+      <span className="flex items-start justify-between gap-2">
+        <span className="min-w-0">
+          <span className="eyebrow block truncate text-maroon">{board.client || 'Internal'}</span>
+          <span className="mt-1 block font-serif text-lg leading-snug">{board.name}</span>
+        </span>
+        <ChevronRight size={18} className="mt-1 shrink-0 text-steel-light" aria-hidden="true" />
+      </span>
       {board.address ? (
-        <p className="mt-2 flex items-center gap-1 text-[11.5px] text-steel">
-          <MapPin size={12} className="shrink-0 text-steel-light" />
+        <span className="mt-2 flex items-center gap-1.5 text-[13px] text-steel">
+          <MapPin size={13} className="shrink-0" aria-hidden="true" />
           <span className="truncate">{board.address}</span>
-        </p>
+        </span>
       ) : null}
-
-      <ProgressBar value={percent} color={board.accent} className="mt-3.5" />
-
-      <div className="mt-2 flex items-center justify-between text-[11.5px]">
+      <ProgressBar value={total ? (done / total) * 100 : 0} color={board.accent} className="mt-3.5" />
+      <span className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[13px]">
         <span className="text-steel">
           {done} of {total} tasks
         </span>
         <span className="flex items-center gap-2">
-          {blocked > 0 ? (
-            <span className="rounded-full bg-[#F6DAD5] px-2 py-0.5 font-semibold text-[#8C2C1B]">
-              {blocked} blocked
-            </span>
-          ) : null}
-          <span className="font-semibold text-ink">{money(board.contract_value)}</span>
+          {blocked > 0 ? <Tag tone="danger">{blocked} blocked</Tag> : null}
+          {board.job_id ? <Tag>Job #{board.job_id}</Tag> : <Tag tone="warn">No estimate</Tag>}
+          <span className="tabular font-semibold">{moneyFull(board.contract_value)}</span>
         </span>
-      </div>
-    </button>
+      </span>
+    </a>
   )
 }
 
-export default function ProjectsPage({ boards, onOpenBoard, onCreated }) {
+/** Every project board, including ones started without an estimate. */
+export default function ProjectsPage() {
+  const [boards, setBoards] = useState(null)
+  const [error, setError] = useState('')
   const [query, setQuery] = useState('')
   const [creating, setCreating] = useState(false)
 
+  const load = useCallback(async () => {
+    try {
+      setBoards(await api.boards())
+      setError('')
+    } catch (caught) {
+      setError(caught.message)
+    }
+  }, [])
+  useEffect(() => {
+    load()
+  }, [load])
+
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase()
-    if (!term) return boards
-    return boards.filter((board) =>
-      [board.name, board.client, board.address].join(' ').toLowerCase().includes(term)
-    )
+    return (boards || []).filter((board) => !term || [board.name, board.client, board.address].join(' ').toLowerCase().includes(term))
   }, [boards, query])
 
-  const contractTotal = boards.reduce((sum, board) => sum + (Number(board.contract_value) || 0), 0)
-  const openTasks = boards.reduce((sum, board) => sum + (Number(board.open_items) || 0), 0)
-
-  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
-
   return (
-    <div className="min-h-full bg-sand">
-      <header className="sticky top-0 z-30 bg-sand/95 px-4 pb-3 pt-4 backdrop-blur">
-        <div className="flex items-center justify-between">
-          <Logo size={32} />
-          <button
-            type="button"
-            onClick={() => setCreating(true)}
-            className="inline-flex items-center gap-1.5 rounded-full bg-maroon px-3 py-2 text-xs font-semibold text-white shadow-sm active:bg-maroon-dark"
-          >
-            <Plus size={14} strokeWidth={2.6} />
-            New
-          </button>
+    <div className="workspace">
+      <BackLink to="/overview">Overview</BackLink>
+      <div className="mt-2 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+        <div>
+          <h1 className="page-title">Project boards</h1>
+          <p className="mt-1 max-w-xl text-sm text-steel">Projects created from an approved estimate are managed under Jobs. A board started here has no customer, estimate or approved budget attached.</p>
         </div>
-
-        <h1 className="mt-4 font-serif text-[25px] leading-none text-ink">Projects</h1>
-        <p className="mt-1.5 text-[11.5px] text-steel">
-          {today} · {boards.length} active job{boards.length === 1 ? '' : 's'} · {money(contractTotal)} under contract
-        </p>
-
-        <div className="relative mt-3">
-          <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-steel" />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search jobs, owners, addresses"
-            aria-label="Search projects"
-            className="w-full rounded-xl border border-black/10 bg-white py-2.5 pl-9 pr-3 text-[13.5px] text-ink outline-none placeholder:text-steel/70 focus:border-maroon/40 focus:ring-2 focus:ring-maroon/10"
-          />
-        </div>
-
-        <div className="mt-3 flex items-center gap-1.5 text-[11px] text-steel">
-          <span className="h-1.5 w-1.5 rounded-full bg-maroon" />
-          {openTasks} open task{openTasks === 1 ? '' : 's'} across the crews
-        </div>
-      </header>
-
-      <div className="space-y-3 px-4 pb-8">
-        {filtered.map((board) => (
-          <ProjectCard key={board.id} board={board} onOpen={onOpenBoard} />
-        ))}
-
-        {!filtered.length ? (
-          <div className="card px-4 py-8 text-center">
-            <p className="font-serif text-[15px] text-ink">
-              {boards.length ? 'No jobs match that search' : 'No projects on the board yet'}
-            </p>
-            <p className="mt-1 text-xs text-steel">
-              {boards.length ? 'Try a different owner or street name.' : 'Start with a project and add the scopes as you go.'}
-            </p>
-          </div>
-        ) : null}
+        <button type="button" className="btn-ghost" onClick={() => setCreating(true)}>
+          <Plus size={16} aria-hidden="true" />
+          Board without estimate
+        </button>
       </div>
 
-      {creating ? (
-        <NewProjectSheet onClose={() => setCreating(false)} onCreated={onCreated} />
+      <label className="relative mt-5 block max-w-sm">
+        <span className="sr-only">Search project boards</span>
+        <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-steel" aria-hidden="true" />
+        <input type="search" className="field !py-2 pl-9" placeholder="Search name, client, address" value={query} onChange={(event) => setQuery(event.target.value)} />
+      </label>
+
+      {error ? <LoadError message={error} onRetry={load} /> : null}
+      {!boards && !error ? <Loading label="Loading project boards…" /> : null}
+      {boards && !filtered.length ? (
+        <div className="card mt-4">
+          <EmptyState title={boards.length ? 'No boards match that search' : 'No project boards yet'}>
+            {boards.length ? 'Try a different name or street.' : 'Approve an estimate under Jobs and create its project to see it here.'}
+          </EmptyState>
+        </div>
       ) : null}
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {filtered.map((board) => (
+          <ProjectCard key={board.id} board={board} />
+        ))}
+      </div>
+
+      {creating ? <NewProjectSheet onClose={() => setCreating(false)} onCreated={load} /> : null}
     </div>
   )
 }
