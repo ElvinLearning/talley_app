@@ -1,5 +1,8 @@
 """A.E. Talley Construction — field board API."""
 
+import os
+from pathlib import Path
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Optional
@@ -431,4 +434,14 @@ def overview():
         conn.close()
 
 public_app.include_router(app)
+
+@public_app.get("/healthz")
+def readiness():
+    return {"ok": True}
+
+# Hash-based frontend routes need only the root HTML. Register after API routes.
+static_dir = os.environ.get("STATIC_DIR")
+if static_dir:
+    public_app.mount("/", StaticFiles(directory=Path(static_dir), html=True), name="frontend")
+
 app = public_app

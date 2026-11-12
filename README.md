@@ -159,3 +159,14 @@ Existing signed-in workers retain their role restrictions. Use **Switch user**
 to sign in as a field worker. Remove `DEMO_SKIP_LOGIN` to restore the login gate.
 GitHub Pages still requires a separately hosted API; this does not add a backend
 or database to static hosting.
+
+
+## Railway demo deployment
+
+The root Dockerfile builds React and serves it from FastAPI on the same origin.
+Attach a persistent volume at `/data`; SQLite is stored at `/data/talley.db`.
+Use one replica. Set the healthcheck to `/healthz` and retain secure cookies.
+Set `DEMO_MODE=1`, a generated `TALLEY_DEMO_PASSWORD` (12+ characters), and
+`DEMO_SKIP_LOGIN=1` only for the public synthetic-data demo. Anyone with the URL
+can edit this demo. Disable login-free access before storing customer data.
+Local databases and environment files are excluded from the container image.
