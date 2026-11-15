@@ -260,3 +260,17 @@ Local databases and environment files are excluded from the container image.
 API responses are never cached (`no-store`); the page shell is revalidated on
 every visit so a new deploy is picked up; hashed files under `/assets` are cached
 for a year.
+
+## AI connection test (OpenRouter)
+
+`#/ai` (administrators only) checks the OpenRouter key, lists models, and runs a
+small chat with role presets (general, estimator, office manager, field foreman),
+browser voice input (Chrome/Edge) and optional read-aloud replies. No workspace
+records are sent to the model.
+
+- `OPENROUTER_API_KEY` — server-side only; never sent to the browser.
+- `AI_ALLOW_PAID_MODELS=1` — optional. Without it only free models are listed and
+  accepted, because the login-free demo lets anyone reach this page. Replies are
+  capped at 600 tokens.
+
+Endpoints: `GET /api/ai/status`, `GET /api/ai/models`, `POST /api/ai/chat`.

@@ -1,7 +1,8 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
-import { BookOpen, ClipboardList, LogOut, Sunrise, TrendingUp, Users } from 'lucide-react'
+import { BookOpen, ClipboardList, LogOut, Sparkles, Sunrise, TrendingUp, Users } from 'lucide-react'
 import TodayPage from './pages/TodayPage'
 import AssistantPage from './pages/AssistantPage'
+import AiTestPage from './pages/AiTestPage'
 import Logo from './components/Logo'
 import { Alert, Field, Loading } from './components/ui'
 import BoardPage from './pages/BoardPage'
@@ -75,6 +76,7 @@ const NAV = [
   { key: 'crew', path: '/crew', label: 'Crew', Icon: Users },
   { key: 'overview', path: '/overview', label: 'Overview', Icon: TrendingUp },
   { key: 'assistant', path: '/assistant', label: 'Library', Icon: BookOpen },
+  { key: 'ai', path: '/ai', label: 'AI', Icon: Sparkles },
 ]
 
 const DEMO_NOTE = 'Demo workspace · Synthetic records and prices only · No client messages are sent'
@@ -97,6 +99,7 @@ function adminRoute(parts) {
   const [section, id, sub, subId, leaf] = parts
   if (!section || (section === 'today' && parts.length === 1)) return { key: 'today', title: 'Today', view: <TodayPage /> }
   if (section === 'assistant' && parts.length === 1) return { key: 'assistant', title: 'Estimate library', view: <AssistantPage /> }
+  if (section === 'ai' && parts.length === 1) return { key: 'ai', title: 'AI test', view: <AiTestPage /> }
   const numeric = (value) => /^\d+$/.test(value || '')
   if (!section || section === 'jobs') {
     if (!id) return { key: 'jobs', title: 'Jobs', view: <JobsPage /> }
