@@ -1,0 +1,14 @@
+.git
+**/node_modules
+**/.env*
+.venv
+**/__pycache__
+**/data
+**/*.db
+**/*.db-*
+**/test-results
+**/test-artifacts
+**/playwright-report
+frontend/dist
+frontend/android
+frontend/ios

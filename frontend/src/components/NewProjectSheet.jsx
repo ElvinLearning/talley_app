@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import Sheet from './Sheet'
+import { Alert, Field } from './ui'
 import { api } from '../lib/api'
 
+/** A project board with no customer, estimate or approved budget behind it. */
 export default function NewProjectSheet({ onClose, onCreated }) {
   const [form, setForm] = useState({ name: '', client: '', address: '', contract_value: '' })
   const [saving, setSaving] = useState(false)
@@ -21,79 +23,31 @@ export default function NewProjectSheet({ onClose, onCreated }) {
         address: form.address.trim(),
         contract_value: Number(form.contract_value) || 0,
       })
-      onCreated(board)
+      await onCreated(board)
       onClose()
     } catch (caught) {
-      setError(caught.message || 'Could not create this project')
+      setError(caught.message || 'Could not create this board')
       setSaving(false)
     }
   }
 
   return (
     <Sheet
-      title="New project"
-      subtitle="Creates a board with one open scope"
+      title="Board without an estimate"
+      subtitle="For work that will not go through an estimate. Starts with one open section."
       onClose={onClose}
       footer={
-        <button
-          type="submit"
-          form="new-project-form"
-          disabled={saving || !form.name.trim()}
-          className="btn-primary w-full"
-        >
-          {saving ? 'Creating…' : 'Create project'}
+        <button type="submit" form="new-project-form" disabled={saving || !form.name.trim()} className="btn-primary w-full">
+          {saving ? 'Creating…' : 'Create board'}
         </button>
       }
     >
-      <form id="new-project-form" onSubmit={submit} className="space-y-4 pb-1">
-        <div>
-          <label className="label" htmlFor="project-name">
-            Project name
-          </label>
-          <input
-            id="project-name"
-            className="field"
-            placeholder="e.g. Northshore Clinic Buildout"
-            value={form.name}
-            onChange={set('name')}
-            autoFocus
-          />
-        </div>
-        <div>
-          <label className="label" htmlFor="project-client">
-            Owner / client
-          </label>
-          <input id="project-client" className="field" placeholder="Who we bill" value={form.client} onChange={set('client')} />
-        </div>
-        <div>
-          <label className="label" htmlFor="project-address">
-            Job address
-          </label>
-          <input
-            id="project-address"
-            className="field"
-            placeholder="Street · City, TN"
-            value={form.address}
-            onChange={set('address')}
-          />
-        </div>
-        <div>
-          <label className="label" htmlFor="project-value">
-            Contract value
-          </label>
-          <input
-            id="project-value"
-            type="number"
-            inputMode="numeric"
-            min="0"
-            step="1000"
-            placeholder="0"
-            className="field tabular-nums"
-            value={form.contract_value}
-            onChange={set('contract_value')}
-          />
-        </div>
-        {error ? <p className="rounded-lg bg-[#F6DAD5] px-3 py-2 text-xs text-[#8C2C1B]">{error}</p> : null}
+      <form id="new-project-form" onSubmit={submit} className="space-y-4">
+        <Field label="Board name" required data-autofocus placeholder="e.g. Shop and warranty work" value={form.name} onChange={set('name')} />
+        <Field label="Client" placeholder="Leave blank for internal work" value={form.client} onChange={set('client')} />
+        <Field label="Job address" placeholder="Street, city, state" value={form.address} onChange={set('address')} />
+        <Field label="Contract value ($)" type="number" inputMode="decimal" min="0" step="0.01" placeholder="0" className="max-w-[220px]" value={form.contract_value} onChange={set('contract_value')} />
+        <Alert message={error} />
       </form>
     </Sheet>
   )

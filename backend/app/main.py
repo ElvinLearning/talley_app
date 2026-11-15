@@ -1,14 +1,23 @@
 """A.E. Talley Construction — field board API."""
 
+import os
+from pathlib import Path
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
+from datetime import date
+from typing import Literal
 
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from .db import connect, init_db
+from .auth import admin, router as auth_router
+from .workflow import router as workflow_router
+from .bootstrap import initialize
+from .assistant import router as assistant_router
 
 STATUSES = ["not_started", "in_progress", "blocked", "review", "done"]
 
@@ -18,7 +27,8 @@ SELECT b.*,
     (SELECT COUNT(*) FROM items i JOIN groups g ON i.group_id = g.id WHERE g.board_id = b.id AND i.status = 'done') AS done_items,
     (SELECT COUNT(*) FROM items i JOIN groups g ON i.group_id = g.id WHERE g.board_id = b.id AND i.status = 'blocked') AS blocked_items,
     (SELECT COUNT(*) FROM items i JOIN groups g ON i.group_id = g.id WHERE g.board_id = b.id AND i.status != 'done') AS open_items,
-    (SELECT COALESCE(SUM(i.cost), 0) FROM items i JOIN groups g ON i.group_id = g.id WHERE g.board_id = b.id) AS committed
+    (SELECT COALESCE(SUM(i.cost), 0) FROM items i JOIN groups g ON i.group_id = g.id WHERE g.board_id = b.id) AS committed,
+    (SELECT o.job_id FROM project_origins o WHERE o.board_id = b.id) AS job_id
 FROM boards b
 """
 
@@ -26,20 +36,45 @@ FROM boards b
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     init_db()
+    initialize()
     yield
 
 
-app = FastAPI(title="Talley Field Board", lifespan=lifespan)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+public_app = FastAPI(title="Talley Operations", lifespan=lifespan)
+# Existing cost-bearing board routes are administrator-only.
+app = APIRouter(dependencies=[Depends(admin)])
+
+@public_app.middleware("http")
+async def security_headers(request: Request, call_next):
+    if request.method not in ("GET", "HEAD", "OPTIONS") and request.headers.get("x-talley-request") != "1":
+        return JSONResponse({"detail": "Missing same-origin request header"}, status_code=403)
+    response = await call_next(request)
+    path = request.url.path
+    if path.startswith("/assets/") and response.status_code == 200:
+        # Vite puts a content hash in these file names, so a file never changes.
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    elif path.startswith("/api/") or path == "/healthz":
+        # Job and pricing data must never be kept by a browser or proxy.
+        response.headers["Cache-Control"] = "no-store"
+    else:
+        # The page shell: reuse it, but check for a newer deploy every time.
+        response.headers["Cache-Control"] = "no-cache"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    return response
+
+public_app.include_router(auth_router)
+public_app.include_router(workflow_router)
+public_app.include_router(assistant_router)
 
 
 def _now() -> str:
-    return datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _short_day(iso: str) -> str:
+    day = date.fromisoformat(iso[:10])
+    return f"{day:%b} {day.day}"
 
 
 class BoardIn(BaseModel):
@@ -72,21 +107,21 @@ class GroupPatch(BaseModel):
 
 class ItemIn(BaseModel):
     name: str = Field(min_length=1)
-    status: str = "not_started"
+    status: Literal["not_started","in_progress","blocked","review","done"] = "not_started"
     owner: str = ""
     start_date: Optional[str] = None
-    due_date: Optional[str] = None
-    cost: float = 0
+    due_date: Optional[date] = None
+    cost: float = Field(default=0, ge=0, le=1e10, allow_inf_nan=False)
     notes: str = ""
 
 
 class ItemPatch(BaseModel):
-    name: Optional[str] = None
+    name: Optional[str] = Field(default=None, min_length=1, max_length=300)
     status: Optional[str] = None
-    owner: Optional[str] = None
+    owner: Optional[str] = Field(default=None, max_length=200)
     start_date: Optional[str] = None
-    due_date: Optional[str] = None
-    cost: Optional[float] = None
+    due_date: Optional[date] = None
+    cost: Optional[float] = Field(default=None, ge=0, le=1e10, allow_inf_nan=False)
     notes: Optional[str] = None
 
 
@@ -154,7 +189,7 @@ def create_board(payload: BoardIn):
                 payload.address,
                 payload.contract_value,
                 payload.accent,
-                payload.start_date or datetime.utcnow().date().isoformat(),
+                payload.start_date or datetime.now(timezone.utc).date().isoformat(),
                 payload.target_date,
                 _now(),
             ),
@@ -193,7 +228,7 @@ def get_board(board_id: int):
         board["activity"] = [
             dict(row)
             for row in conn.execute(
-                "SELECT * FROM activity WHERE board_id = ? ORDER BY id DESC LIMIT 8", (board_id,)
+                "SELECT * FROM activity WHERE board_id = ? ORDER BY id DESC LIMIT 20", (board_id,)
             ).fetchall()
         ]
         return board
@@ -224,6 +259,8 @@ def delete_board(board_id: int):
     conn = connect()
     try:
         _board_or_404(conn, board_id)
+        if conn.execute("SELECT 1 FROM project_origins WHERE board_id=?", (board_id,)).fetchone():
+            raise HTTPException(409, "Converted projects retain their approved estimate. Mark the job complete instead.")
         conn.execute("DELETE FROM boards WHERE id = ?", (board_id,))
         conn.commit()
     finally:
@@ -297,7 +334,7 @@ def create_item(group_id: int, payload: ItemIn):
                 payload.status,
                 payload.owner,
                 payload.start_date,
-                payload.due_date,
+                payload.due_date.isoformat() if payload.due_date else None,
                 payload.cost,
                 payload.notes,
                 next_position,
@@ -315,7 +352,7 @@ def create_item(group_id: int, payload: ItemIn):
 
 @app.patch("/api/items/{item_id}")
 def patch_item(item_id: int, payload: ItemPatch):
-    fields = payload.model_dump(exclude_unset=True)
+    fields = payload.model_dump(exclude_unset=True, mode="json")
     if "status" in fields and fields["status"] not in STATUSES:
         raise HTTPException(status_code=400, detail="Unknown status")
     conn = connect()
@@ -333,8 +370,14 @@ def patch_item(item_id: int, payload: ItemPatch):
                     conn,
                     board_id,
                     f"{previous['name']} moved to {fields['status'].replace('_', ' ')}",
-                    "blocked" if fields["status"] == "blocked" else "update",
+                    "blocked" if fields["status"] == "blocked" else "done" if fields["status"] == "done" else "update",
                 )
+            if "owner" in fields and fields["owner"] != previous["owner"]:
+                _activity(conn, board_id, f"{previous['name']} assigned to {fields['owner']}" if fields["owner"]
+                          else f"{previous['name']} is unassigned")
+            if "due_date" in fields and fields["due_date"] != previous["due_date"]:
+                _activity(conn, board_id, f"{previous['name']} due {_short_day(fields['due_date'])}"
+                          if fields["due_date"] else f"{previous['name']} due date cleared")
             conn.commit()
         return dict(conn.execute("SELECT * FROM items WHERE id = ?", (item_id,)).fetchone())
     finally:
@@ -400,3 +443,16 @@ def overview():
         }
     finally:
         conn.close()
+
+public_app.include_router(app)
+
+@public_app.get("/healthz")
+def readiness():
+    return {"ok": True}
+
+# Hash-based frontend routes need only the root HTML. Register after API routes.
+static_dir = os.environ.get("STATIC_DIR")
+if static_dir:
+    public_app.mount("/", StaticFiles(directory=Path(static_dir), html=True), name="frontend")
+
+app = public_app
