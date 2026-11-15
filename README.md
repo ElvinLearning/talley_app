@@ -141,8 +141,11 @@ See [Anthony's demo walkthrough](docs/DEMO.md).
 - The original boards/groups/items/team/activity tables are retained.
   Additive migration `backend/migrations/001_estimating.sql` introduces customers,
   jobs, estimates, project origins, users, assignments and sessions. Existing
-  board/task data is not replaced. Take a database backup before using a new build
-  with any non-demo data.
+  board/task data is not replaced. Existing databases now receive a SQLite backup
+  under `backups/` beside the database before pending migrations run; its integrity
+  is checked and the snapshot name is logged. Fresh databases and unchanged
+  restarts do not create snapshots. These on-volume snapshots are a rollback aid,
+  not an off-site disaster-recovery system; retain a separate backup for real data.
 - The old fictional Tennessee mega-project seed is now opt-in via
   `SEED_LEGACY_DEMO=1`. It is not used by the sample workflow.
 - Passwords use salted scrypt. Random session tokens are stored only as SHA-256

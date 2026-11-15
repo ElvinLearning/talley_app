@@ -137,7 +137,11 @@
 .focus-row:hover { background: #fcfaf7; }
 .focus-number { align-self: flex-start; padding-top: 2px; color: #8a6c67; font-family: Georgia, serif; font-size: 22px; }
 @media (max-width: 600px) {
-  .day-banner { padding: 24px; }
+  .day-banner { padding: 18px 20px; }
+  .day-banner h2 { font-size: 22px; margin-top: 10px; }
+  .day-banner h2 br { display: none; }
+  .day-banner p.mt-4 { margin-top: 10px; }
+  .day-banner a { margin-top: 14px; }
   .blueprint { opacity: .09; }
   .focus-row { padding: 16px; gap: 12px; }
 }

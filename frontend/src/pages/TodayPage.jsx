@@ -31,7 +31,7 @@ export default function TodayPage() {
     <section className="day-banner mt-3" aria-labelledby="day-title">
       <div className="relative z-10 max-w-xl">
         <p className="eyebrow flex items-center gap-2 text-white/80"><Sunrise size={17} />{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
-        <h2 id="day-title" className="font-serif text-2xl sm:text-[38px] leading-tight mt-4">Good work starts<br />with a clear next step.</h2>
+        <h2 id="day-title" className="font-serif text-2xl sm:text-[38px] leading-tight mt-4">Good work starts<br /> with a clear next step.</h2>
         <p className="mt-4 text-sm sm:text-base text-white/85 max-w-md">{brief.priorities.length ? `${brief.priorities.length} job${brief.priorities.length === 1 ? '' : 's'} to review. Clear the blockers, move the estimates forward, and keep your crew moving.` : 'A clear view of your jobs, your crew, and what comes next.'}</p>
         <a href={href('/jobs')} className="inline-flex items-center gap-2 mt-6 text-sm font-semibold text-white underline underline-offset-4">Open the job sheet <ArrowRight size={16} /></a>
       </div>

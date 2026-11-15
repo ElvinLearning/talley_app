@@ -318,3 +318,24 @@ def test_business_change_rolls_back_when_event_recording_fails(client, monkeypat
         client.post(f"/api/estimates/{e['id']}/approve", json={'version': e['version'], 'approved_by': 'Demo', 'note': 'Test'})
     assert client.get(f"/api/estimates/{e['id']}").json()['state'] == 'draft'
     assert client.get('/api/integrations/events').json()['items'] == []
+
+
+def test_upgrade_backup_is_restorable_and_not_repeated(client):
+    from pathlib import Path
+    from app.bootstrap import initialize
+    j, e = saved(client)
+    # Simulate an existing database waiting for migration 002.
+    with closing(db.connect()) as conn, conn:
+        conn.execute("DELETE FROM schema_migrations WHERE version='002_integration_events'")
+        conn.execute("DROP TABLE integration_events")
+    initialize()
+    snapshots = list((Path(db.DB_PATH).parent / 'backups').glob('*.db'))
+    assert len(snapshots) == 1
+    with closing(sqlite3.connect(snapshots[0])) as snapshot:
+        assert snapshot.execute('PRAGMA quick_check').fetchone()[0] == 'ok'
+        assert snapshot.execute('SELECT name FROM jobs WHERE id=?', (j['id'],)).fetchone()[0] == j['name']
+        assert json.loads(snapshot.execute('SELECT document FROM estimates WHERE id=?', (e['id'],)).fetchone()[0]) == e['document']
+        assert snapshot.execute("SELECT COUNT(*) FROM schema_migrations WHERE version='002_integration_events'").fetchone()[0] == 0
+    initialize()
+    assert len(list((Path(db.DB_PATH).parent / 'backups').glob('*.db'))) == 1
+    assert client.get('/api/integrations').status_code == 200

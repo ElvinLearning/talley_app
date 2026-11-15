@@ -47,6 +47,27 @@ const saveEstimate = (page) => page.getByRole('button', { name: 'Save estimate',
 const saveState = (page) => page.getByTestId('save-state')
 const line = (page, label, index = 0) => page.getByLabel(label, { exact: true }).nth(index)
 
+test('every office screen loads without errors or horizontal overflow', async ({ page }, testInfo) => {
+  const errors = []
+  page.on('pageerror', error => errors.push(error.message))
+  page.on('response', response => {
+    if (response.url().includes('/api/') && response.status() >= 400) errors.push(`${response.status()} ${response.url()}`)
+  })
+  // The initial unauthenticated session check is expected.
+  await login(page, 'admin.demo')
+  await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible()
+  errors.length = 0
+  for (const route of ['today', 'jobs', 'crew', 'overview', 'projects', 'assistant']) {
+    await page.goto('/#/' + route)
+    await page.waitForLoadState('networkidle')
+    await expect(page.locator('main h1')).toBeVisible()
+    await expect(page.getByRole('alert')).toHaveCount(0)
+    await noOverflow(page)
+    await page.screenshot({ path: `test-artifacts/review-${testInfo.project.name}-${route}.png`, animations: 'disabled' })
+  }
+  expect(errors).toEqual([])
+})
+
 test('today and sourced estimate library stay useful on desktop and phone', async ({ page }, testInfo) => {
   await login(page, 'admin.demo')
   await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible()

@@ -1,5 +1,32 @@
 # Build evidence
 
+## Release review — November 15, 2026
+
+Reviewed all six office routes (Today, Jobs, Crew, Overview, Project boards,
+Library) and the full customer-to-estimate-to-approved-project-to-worker-update
+flow. Rechecked calculations, source links, saved data, immutable approval,
+duplicate prevention, session recovery, permissions and responsive overflow.
+The merged monday-app-integration tree matches 11813cf; main was still 8be7fe0.
+
+Release refinements: a more compact Today banner on phones, and an automatic
+verified SQLite snapshot before pending migrations on an existing database.
+Snapshots live beside the database in backups/; no new snapshot on unchanged
+restart. A test opens the snapshot and verifies the original job and full saved
+estimate. Snapshot failure stops migration. This is not off-site disaster recovery.
+
+Pre-release checks: 21 backend tests, 11 frontend unit tests, 18 desktop/mobile
+Chromium browser tests, production build and secret bundle check passed. The
+browser suite now visits every office route, checking API errors, runtime errors
+and horizontal overflow. Visually reviewed the resulting screen captures.
+Existing Starlette/AnyIO deprecation warning remains. Physical phones, Safari,
+real customer pricing and Anthony's personal acceptance are not verified.
+
+The user authorized pushing main and deploying the reviewed release to the
+existing talley-demo / production / talley-app Railway service, at
+https://talley-app-production.up.railway.app/. It remains a synthetic-data demo.
+Seven existing demo jobs were observed before deployment; no customer records
+were changed during the read-only live review.
+
 ## Today workspace and API foundation — November 12, 2026
 
 Starting point: clean `codex/estimating-demo` at `8be7fe0`, also remote main.
