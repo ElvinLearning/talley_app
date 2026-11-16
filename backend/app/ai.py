@@ -83,11 +83,9 @@ def status():
     if response.status_code != 200:
         return dict(configured=True, valid=False, paid_models_allowed=_paid_allowed(),
                     message=_upstream_error(response))
-    data = response.json().get("data", {})
+    # Only say whether the key works: no key label, spend or limits leave the server.
     return dict(configured=True, valid=True, paid_models_allowed=_paid_allowed(),
-                message="Key accepted by OpenRouter.",
-                label=data.get("label"), usage=data.get("usage"), limit=data.get("limit"),
-                limit_remaining=data.get("limit_remaining"), is_free_tier=data.get("is_free_tier"))
+                message="Key accepted by OpenRouter.")
 
 
 @router.get("/models")

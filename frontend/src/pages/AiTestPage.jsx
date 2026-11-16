@@ -15,9 +15,6 @@ const PREFERRED = /(gpt-oss|llama|gemini|deepseek|qwen|mistral)/i
 
 const SpeechRecognition = typeof window !== 'undefined' ? window.SpeechRecognition || window.webkitSpeechRecognition : null
 
-function money(value) {
-  return value == null ? 'no limit' : Number(value).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 4 })
-}
 
 export default function AiTestPage() {
   const [status, setStatus] = useState(null)
@@ -108,12 +105,6 @@ export default function AiTestPage() {
       {!status ? <Loading label="Checking key…" /> : <div className="mt-4">
         <div className={`flex items-center gap-2 font-semibold ${status.valid ? 'text-ok' : 'text-danger'}`}><StatusIcon size={18} />{status.valid ? 'Key works' : status.configured ? 'Key is set but not working' : 'No key on the server'}</div>
         <p className="text-sm text-steel mt-1">{status.message}</p>
-        {status.valid ? <dl className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 text-sm">
-          <div><dt className="text-xs text-steel">Label</dt><dd className="font-medium break-words">{status.label || '—'}</dd></div>
-          <div><dt className="text-xs text-steel">Used so far</dt><dd className="font-medium">{money(status.usage)}</dd></div>
-          <div><dt className="text-xs text-steel">Key limit</dt><dd className="font-medium">{money(status.limit)}</dd></div>
-          <div><dt className="text-xs text-steel">Account</dt><dd className="font-medium">{status.is_free_tier ? 'Free tier (no credits bought)' : 'Credits purchased'}</dd></div>
-        </dl> : null}
         <div className="flex flex-wrap gap-2 mt-4"><Tag tone={status.paid_models_allowed ? 'warn' : 'ok'}>{status.paid_models_allowed ? 'Paid models allowed' : 'Free models only'}</Tag></div>
       </div>}
     </section>
@@ -124,7 +115,7 @@ export default function AiTestPage() {
         <div className="grid sm:grid-cols-2 gap-3 mt-4">
           <div className="min-w-0"><label htmlFor="ai-model" className="label">Model</label>
             <select id="ai-model" className="field" value={model} onChange={(e) => setModel(e.target.value)} disabled={!models.length}>
-              {models.map((m) => <option key={m.id} value={m.id}>{m.free ? '' : '$ '}{m.name}</option>)}
+              {models.map((m) => <option key={m.id} value={m.id}>{m.name}{m.free ? '' : ' (paid)'}</option>)}
             </select>
             <p className="mt-1 text-xs text-steel">{models.length ? `${models.length} models available${selected ? ` · ${selected.free ? 'free' : 'paid'}` : ''}` : 'Loading models…'}</p>
           </div>

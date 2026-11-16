@@ -56,7 +56,8 @@ def client(tmp_path, monkeypatch):
 
 def test_status_reports_valid_key(client):
     body = client.get("/api/ai/status").json()
-    assert body["valid"] and body["is_free_tier"] and body["paid_models_allowed"] is False
+    assert body["valid"] and body["paid_models_allowed"] is False
+    assert not {"label", "usage", "limit", "limit_remaining", "is_free_tier"} & body.keys()
 
 
 def test_status_reports_missing_and_rejected_key(client, monkeypatch):
