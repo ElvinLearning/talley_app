@@ -38,16 +38,13 @@ def _headers():
 
 
 def _upstream_error(response):
-    try:
-        message = response.json().get("error", {}).get("message")
-    except ValueError:
-        message = None
+    # Keep provider billing details out of product copy, including nested errors.
     hints = {
         401: "OpenRouter rejected the key. Check OPENROUTER_API_KEY.",
-        402: "The OpenRouter account has no credit for this model. Try a free model or add credits.",
-        429: "OpenRouter rate limit reached. Free models allow a limited number of requests per day.",
+        402: "This model is unavailable for the current AI account. Choose another model or contact the app administrator.",
+        429: "AI request limit reached. Please try again later.",
     }
-    return hints.get(response.status_code) or f"OpenRouter error ({response.status_code}): {message or 'no details'}"
+    return hints.get(response.status_code) or "OpenRouter could not complete the request. Please try again or choose another model."
 
 
 def _models():
@@ -121,7 +118,7 @@ def chat(payload: ChatIn):
     if not model:
         raise HTTPException(422, "Unknown model.")
     if not model["free"] and not _paid_allowed():
-        raise HTTPException(403, "Paid models are off. Set AI_ALLOW_PAID_MODELS=1 on the server to allow them.")
+        raise HTTPException(403, "This model is not enabled for this workspace. Choose another available model.")
     messages = [{"role": "system", "content": payload.system}] if payload.system.strip() else []
     messages += [m.model_dump() for m in payload.messages]
     started = time.monotonic()
@@ -134,7 +131,7 @@ def chat(payload: ChatIn):
         raise HTTPException(502, _upstream_error(response))
     body = response.json()
     if body.get("error"):
-        raise HTTPException(502, f"OpenRouter error: {body['error'].get('message', 'no details')}")
+        raise HTTPException(502, _upstream_error(response))
     choice = (body.get("choices") or [{}])[0]
     text = (choice.get("message") or {}).get("content") or ""
     return dict(reply=re.sub(r"\s+$", "", text), model=body.get("model", payload.model),

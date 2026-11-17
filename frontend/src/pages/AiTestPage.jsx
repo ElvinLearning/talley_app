@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { CheckCircle2, KeyRound, Mic, MicOff, RefreshCw, Send, Sparkles, Trash2, Volume2, XCircle } from 'lucide-react'
-import { Alert, Loading, Tag } from '../components/ui'
+import { Alert, Loading } from '../components/ui'
 import { request, send } from '../lib/api'
 
 // Role presets: a first look at "agents with roles". Each is just a system prompt.
@@ -12,6 +12,18 @@ const ROLES = [
 ]
 
 const PREFERRED = /(gpt-oss|llama|gemini|deepseek|qwen|mistral)/i
+
+// Provider identifiers stay intact for requests; pricing qualifiers are not UI labels.
+function modelLabel(model) {
+  const id = typeof model === 'string' ? model : model?.id
+  if (id === 'openrouter/free') return 'Automatic model selection'
+  const name = (typeof model === 'string' ? model : model?.name || id) || 'AI model'
+  return name.replace(/\s*[\[(]\s*(?:free|paid)\s*[\])]/gi, '')
+    .replace(/:(?:free|paid)\b/gi, '')
+    .replace(/\b(?:free|paid)\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .replace(/^[\s:/|–—-]+|[\s:/|–—-]+$/g, '') || 'AI model'
+}
 
 const SpeechRecognition = typeof window !== 'undefined' ? window.SpeechRecognition || window.webkitSpeechRecognition : null
 
@@ -58,7 +70,8 @@ export default function AiTestPage() {
     setMessages(next); setInput(''); setError(''); setBusy(true)
     try {
       const result = await send('/ai/chat', 'POST', { model, system: ROLES.find((r) => r.id === role).prompt, messages: next.slice(-20) })
-      setMessages([...next, { role: 'assistant', content: result.reply || '(empty reply)', meta: `${result.model} · ${result.seconds}s${result.usage ? ` · ${result.usage.total_tokens} tokens` : ''}` }])
+      const replyModel = models.find((entry) => entry.id === result.model) || result.model
+      setMessages([...next, { role: 'assistant', content: result.reply || '(empty reply)', meta: `${modelLabel(replyModel)} · ${result.seconds}s${result.usage ? ` · ${result.usage.total_tokens} tokens` : ''}` }])
       if (speak && result.reply && window.speechSynthesis) {
         window.speechSynthesis.cancel()
         window.speechSynthesis.speak(new SpeechSynthesisUtterance(result.reply))
@@ -89,7 +102,6 @@ export default function AiTestPage() {
     rec.start()
   }
 
-  const selected = models.find((m) => m.id === model)
   const StatusIcon = status?.valid ? CheckCircle2 : XCircle
 
   return <div className="workspace fade-in">
@@ -105,7 +117,6 @@ export default function AiTestPage() {
       {!status ? <Loading label="Checking key…" /> : <div className="mt-4">
         <div className={`flex items-center gap-2 font-semibold ${status.valid ? 'text-ok' : 'text-danger'}`}><StatusIcon size={18} />{status.valid ? 'Key works' : status.configured ? 'Key is set but not working' : 'No key on the server'}</div>
         <p className="text-sm text-steel mt-1">{status.message}</p>
-        <div className="flex flex-wrap gap-2 mt-4"><Tag tone={status.paid_models_allowed ? 'warn' : 'ok'}>{status.paid_models_allowed ? 'Paid models allowed' : 'Free models only'}</Tag></div>
       </div>}
     </section>
 
@@ -115,9 +126,9 @@ export default function AiTestPage() {
         <div className="grid sm:grid-cols-2 gap-3 mt-4">
           <div className="min-w-0"><label htmlFor="ai-model" className="label">Model</label>
             <select id="ai-model" className="field" value={model} onChange={(e) => setModel(e.target.value)} disabled={!models.length}>
-              {models.map((m) => <option key={m.id} value={m.id}>{m.name}{m.free ? '' : ' (paid)'}</option>)}
+              {models.map((m) => <option key={m.id} value={m.id}>{modelLabel(m)}</option>)}
             </select>
-            <p className="mt-1 text-xs text-steel">{models.length ? `${models.length} models available${selected ? ` · ${selected.free ? 'free' : 'paid'}` : ''}` : 'Loading models…'}</p>
+            <p className="mt-1 text-xs text-steel">{models.length ? `${models.length} models available` : 'Loading models…'}</p>
           </div>
           <div className="min-w-0"><label htmlFor="ai-role" className="label">Role</label>
             <select id="ai-role" className="field" value={role} onChange={(e) => setRole(e.target.value)}>
