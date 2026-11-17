@@ -37,6 +37,7 @@ export default function TodayPage() {
       </div>
       <div className="blueprint" aria-hidden="true"><span /><span /><span /></div>
     </section>
+    <a href={href('/guide')} className="card flex items-center justify-between gap-3 mt-4 px-4 py-3 hover:bg-paper"><span><span className="font-semibold text-maroon">New here? Take the walkthrough</span><span className="block text-xs text-steel mt-0.5">Follow the real screens, one step at a time.</span></span><ArrowRight size={18} className="shrink-0 text-maroon" aria-hidden="true" /></a>
     <div className="grid grid-cols-3 gap-2 sm:gap-4 my-5" aria-label="Workspace summary">
       {[[brief.active, 'Active jobs'], [brief.drafts, 'Jobs with drafts'], [brief.ready, 'Ready to start']].map(([value, label]) => <div className="card p-3 sm:p-5" key={label}><p className="tabular font-serif text-3xl text-maroon">{value}</p><p className="text-xs sm:text-sm text-steel mt-1">{label}</p></div>)}
     </div>

@@ -339,3 +339,22 @@ def test_upgrade_backup_is_restorable_and_not_repeated(client):
     initialize()
     assert len(list((Path(db.DB_PATH).parent / 'backups').glob('*.db'))) == 1
     assert client.get('/api/integrations').status_code == 200
+
+
+def test_field_preview_is_read_only_redacted_and_admin_only(client):
+    _, e = approved(client)
+    bid = client.post(f"/api/estimates/{e['id']}/convert").json()['board_id']
+    group = client.get(f'/api/boards/{bid}').json()['groups'][0]['id']
+    worker = client.get('/api/workers').json()[0]
+    client.post(f'/api/groups/{group}/items', json={'name': 'Preview task', 'owner': worker['name'], 'cost': 780})
+    empty = client.get(f'/api/boards/{bid}/field-preview').json()
+    assert empty['worker_name'] is None and not empty['job']['tasks'][0]['mine']
+    client.put(f'/api/boards/{bid}/assignments', json={'user_ids': [worker['id']]})
+    preview = client.get(f'/api/boards/{bid}/field-preview').json()
+    assert preview['read_only'] is True and preview['worker_name'] == worker['name']
+    assert preview['job']['tasks'][0]['mine'] is True
+    assert 'cost' not in json.dumps(preview) and 'contract' not in json.dumps(preview)
+    assert client.get('/api/auth/me').json()['role'] == 'admin'
+    assert client.get('/api/boards/999999/field-preview').status_code == 404
+    login(client, 'worker.demo')
+    assert client.get(f'/api/boards/{bid}/field-preview').status_code == 403

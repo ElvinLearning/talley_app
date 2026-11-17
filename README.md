@@ -6,6 +6,25 @@ the existing React/Vite/Tailwind + FastAPI/SQLite field board.
 Start with **Today**, then **Jobs**: customer → job → estimate → recorded approval → project →
 assigned tasks → field status update.
 
+## Clickable walkthrough — November 16, 2026
+
+Open **[the guided demo](https://talley-app-production.up.railway.app/#/guide)**,
+or choose **Walkthrough** in the app. The guide opens real screens, with Next,
+Back, a step selector, collapsible instructions and session-scoped resume/restart.
+Its 18 office steps cover the current features and clearly identify unfinished
+work. Workers receive four field-only steps. The guide itself never writes job
+data, records approval or sends an AI prompt.
+
+Example links are resolved from current accessible records, not fixed IDs. If
+examples are missing, the guide explains what must be created. An office-only,
+read-only field preview uses the same redacted task projection as a worker;
+it does not switch accounts or expose editing controls.
+
+The separate AI test page now supports server-backed model/role chat and optional
+browser voice features. It does not use job history to generate estimates.
+Photo uploads, time/GPS, phone screening and live business integrations remain
+unfinished. See [demo steps and decisions](docs/DEMO.md).
+
 ## Today, historical evidence and integration foundation — November 12, 2026
 
 The administrator landing page is now `#/today`: prioritized blocked, overdue,
@@ -45,8 +64,9 @@ credential form, background dispatcher or machine credential is enabled here.
 
 Future AI must return reviewed drafts with cited source IDs, preserve approved
 revisions, and pass all pricing through the existing deterministic calculation
-engine. Uploaded text must never override tool permissions. No model, live calls,
-accounting, calendar synchronization or paid provider has been enabled.
+engine. Uploaded text must never override tool permissions. This foundation does
+not activate job-aware AI, live calls, accounting or calendar synchronization.
+The separate AI connection test added later is described below.
 
 PostgreSQL, private photos, production identity and restore testing remain next
 steps. SQLite and the existing same-origin session model are retained in this
@@ -57,6 +77,7 @@ before upgrading. The public login-free demo is unsuitable for private data.
 
 | Screen | Address | What it is for |
 | --- | --- | --- |
+| Walkthrough | `#/guide` | Clickable feature guide with instructions, Next/Back, jump links and resume. |
 | Jobs | `#/jobs` | The sheet of every job: stage, next step, owner, due date and value. Filter by stage or "Needs attention" (blocked, overdue or unowned), search, sort, and change a stage in place. |
 | Job | `#/jobs/12` | One page per job: next step with its action, customer contact, scope, estimates and revisions, the task sheet (owner, due date and status edit in place), approved budget, crew access and activity. |
 | Estimate | `#/jobs/12/estimates/7` | Sections and lines as a sheet. Your cost, markup, selling price and tax stay in view. Field-level validation, Ctrl/⌘+S, "Add from past estimates" (your own saved prices; nothing is generated). |

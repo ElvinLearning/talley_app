@@ -1,5 +1,30 @@
 # Anthony's demo walkthrough
 
+## Open the clickable tutorial
+
+**[Start here](https://talley-app-production.up.railway.app/#/guide).** The shared
+synthetic demo opens without a login. Select **Start walkthrough**, use **Next**
+and the back arrow, or choose any feature from the step selector. Instructions
+expand/collapse so the actual screen stays usable on a phone. Close and resume,
+restart, or refresh the example links from the guide page. Progress is kept only
+for this account in the current browser session.
+
+The 18 office steps cover Today, jobs/search/stages, customer intake, job detail,
+estimate editing/saving, saved-price reuse, client preview/printing, manual
+approval, project conversion, tasks/access/activity, a read-only field preview,
+revisions, crew, overview, standalone boards, the estimate library, the AI test,
+and remaining work. A worker account receives a separate four-step field guide.
+The guide never creates records, changes statuses, approves an estimate or sends
+an AI prompt. Only the usual explicit screen actions save changes.
+
+The AI test supports models, role prompts, browser voice and read-aloud replies.
+It sends the entered conversation and selected role prompt, not job history.
+It is not yet the historical-data estimator Anthony described. Photo uploads
+remain unfinished; time/GPS, phone screening and external workflow connections
+are not active. The instructions distinguish those from working features.
+
+## Hands-on sample job
+
 About ten minutes. Use the local demo accounts described in the README. Seed the
 sample jobs first with `scripts/seed_demo.py --showcase`. No real client records or
 prices are needed; everything on screen is synthetic.
@@ -102,6 +127,10 @@ A later revision is a record of a new price, not an automatic change order.
 
 ## Questions for Anthony
 
+- Confirm the workflow with one representative job, including intake fields,
+  stage names, task templates, ownership, delays and closeout.
+- Choose pilot users/jobs and a feedback/acceptance process; tell us which phones,
+  tablets and connectivity conditions the crew works with.
 - Who may price and approve estimates, and who on the crew needs a login?
 - His real labor, material and subcontractor rates; how he marks up (one rate, or
   by type); what is taxable and at what rate; any rounding he uses.
@@ -118,6 +147,15 @@ A later revision is a record of a new price, not an automatic change order.
 - Please supply AE-Talley-App-Meeting-Prep.pdf, the other estimating and
   project tools he mentioned, and two or three real past estimates before the
   demo pricing or these workflow choices are treated as final.
+- Completed-job actual costs where available, plus examples of useful AI outputs,
+  the AI tools he uses already, and what data AI may access with whose review.
+- Required photo/field notes, reporting frequency and any example captions or
+  categories. Keep real documents out of this public demo.
+- For future office-call screening: phone provider, current number, business
+  hours, service area, qualifying questions and urgent-call handoff/fallback.
+- Existing accounting, calendar and file-storage tools; import needs and account
+  owners. Agree service budgets, private access, retention/backups and launch/support
+  responsibilities before activating live connections or importing customer data.
 ## Today and estimate-library walkthrough — November 12, 2026
 
 1. Sign in as the demo administrator. Today opens with the jobs that need review.

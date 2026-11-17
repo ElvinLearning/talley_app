@@ -186,20 +186,23 @@ function TaskCard({ task, boardId, onSaved, onDirty }) {
   )
 }
 
-export function WorkerJob({ boardId }) {
+export function WorkerJob({ boardId, preview = false }) {
   const [job, setJob] = useState(null)
   const [error, setError] = useState('')
+  const [previewName, setPreviewName] = useState(null)
   const [dirtyTasks, setDirtyTasks] = useState({})
   const reportDirty = useContext(DraftContext)
 
   const load = useCallback(async () => {
     try {
-      setJob(await request(`/work/${boardId}`))
+      const result = await request(preview ? `/boards/${boardId}/field-preview` : `/work/${boardId}`)
+      setJob(preview ? result.job : result)
+      if (preview) setPreviewName(result.worker_name)
       setError('')
     } catch (caught) {
       setError(caught.message)
     }
-  }, [boardId])
+  }, [boardId, preview])
   useEffect(() => {
     load()
   }, [load])
@@ -216,8 +219,8 @@ export function WorkerJob({ boardId }) {
     return (
       <div className="workspace !max-w-2xl">
         <LoadError message={error} onRetry={load}>
-          <a className="btn-ghost" href={href('/')}>
-            My jobs
+          <a className="btn-ghost" href={href(preview ? '/guide' : '/')}>
+            {preview ? 'Walkthrough' : 'My jobs'}
           </a>
         </LoadError>
       </div>
@@ -239,7 +242,11 @@ export function WorkerJob({ boardId }) {
 
   return (
     <div className="workspace !max-w-2xl">
-      <BackLink to="/">My jobs</BackLink>
+      <BackLink to={preview ? '/guide' : '/'}>{preview ? 'Walkthrough' : 'My jobs'}</BackLink>
+      {preview ? <div className="rounded-xl border border-maroon/20 bg-maroon-tint p-4 mt-3">
+        <p className="font-semibold text-maroon">Field experience · read-only preview</p>
+        <p className="text-sm text-ink mt-1">{previewName ? `Showing the assigned work for ${previewName}.` : 'No field worker is assigned to this project yet.'} A signed-in worker can update their own tasks and notes. These preview controls are disabled; your account has not changed.</p>
+      </div> : null}
       <h1 className="page-title mt-2 break-words">{job.name}</h1>
       <p className="mt-1.5 flex items-start gap-1.5 text-steel">
         <MapPin size={17} className="mt-[3px] shrink-0" aria-hidden="true" />
@@ -263,7 +270,10 @@ export function WorkerJob({ boardId }) {
       {!mine.length ? <p className="card mt-3 p-5 text-steel">Nothing assigned to you on this job yet. The office will add your tasks here.</p> : null}
       <div className="mt-3 space-y-4">
         {mine.map((task) => (
-          <TaskCard key={task.id} task={task} boardId={boardId} onSaved={saved} onDirty={onDirty} />
+          <fieldset key={task.id} disabled={preview} className="min-w-0">
+            <legend className="sr-only">{preview ? 'Read-only preview: ' : ''}{task.name}</legend>
+            <TaskCard task={task} boardId={boardId} onSaved={saved} onDirty={onDirty} />
+          </fieldset>
         ))}
       </div>
 

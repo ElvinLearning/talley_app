@@ -3,6 +3,7 @@ import { BookOpen, ClipboardList, LogOut, Sparkles, Sunrise, TrendingUp, Users }
 import TodayPage from './pages/TodayPage'
 import AssistantPage from './pages/AssistantPage'
 import AiTestPage from './pages/AiTestPage'
+import { WalkthroughProvider, WalkthroughPanel, WalkthroughPage } from './components/DemoWalkthrough'
 import Logo from './components/Logo'
 import { Alert, Field, Loading } from './components/ui'
 import BoardPage from './pages/BoardPage'
@@ -97,6 +98,8 @@ function NotFound({ home }) {
 
 function adminRoute(parts) {
   const [section, id, sub, subId, leaf] = parts
+  if (section === 'guide' && parts.length === 1) return { key: 'guide', title: 'Walkthrough', view: <WalkthroughPage /> }
+  if (section === 'field-preview' && /^\d+$/.test(id || '') && parts.length === 2) return { key: 'guide', title: 'Field preview', view: <WorkerJob key={`preview-${id}`} boardId={Number(id)} preview /> }
   if (!section || (section === 'today' && parts.length === 1)) return { key: 'today', title: 'Today', view: <TodayPage /> }
   if (section === 'assistant' && parts.length === 1) return { key: 'assistant', title: 'Estimate library', view: <AssistantPage /> }
   if (section === 'ai' && parts.length === 1) return { key: 'ai', title: 'AI test', view: <AiTestPage /> }
@@ -121,6 +124,7 @@ function adminRoute(parts) {
 
 function workerRoute(parts) {
   const [section, id, extra] = parts
+  if (section === 'guide' && parts.length === 1) return { title: 'Walkthrough', view: <WalkthroughPage /> }
   if (!section) return { title: 'My jobs', view: <WorkerHome /> }
   if (section === 'work' && /^\d+$/.test(id || '') && !extra) return { title: 'Job', view: <WorkerJob key={id} boardId={Number(id)} /> }
   return null
@@ -215,6 +219,7 @@ export default function App() {
   )
 
   return (
+    <WalkthroughProvider key={user.id} user={user}>
     <DraftContext.Provider value={reportDirty}>
       <div id="app-shell" className="relative flex h-dvh overflow-hidden bg-sand">
         <a className="skip-link no-print" href="#main" onClick={(event) => { event.preventDefault(); main.current?.focus() }}>
@@ -245,6 +250,7 @@ export default function App() {
                 )
               })}
             </nav>
+            <a className="btn-quiet mx-3 mb-3 justify-start" href={href('/guide')} aria-current={route?.key === 'guide' ? 'page' : undefined}><BookOpen size={18} aria-hidden="true" />Walkthrough</a>
             <p className="mx-3 mb-3 rounded-lg bg-maroon-tint px-3 py-2.5 text-xs leading-snug text-maroon">{DEMO_NOTE}</p>
             <div className="border-t border-line px-4 py-4">
               <p className="truncate text-sm font-semibold">{user.name}</p>
@@ -260,6 +266,7 @@ export default function App() {
               <Logo size={34} />
             </a>
             <div className="flex items-center gap-3">
+              <a className="btn-quiet !px-2" href={href('/guide')} aria-label="Walkthrough"><BookOpen size={19} aria-hidden="true" /></a>
               <span className="hidden text-right text-sm leading-tight sm:block">
                 <span className="block font-semibold">{user.name}</span>
                 <span className="text-xs text-steel">{ROLE_LABEL[user.role]}</span>
@@ -268,6 +275,8 @@ export default function App() {
             </div>
           </header>
           <p className={`no-print shrink-0 bg-maroon-tint px-4 py-1.5 text-xs text-maroon sm:px-6 ${isAdmin ? 'lg:hidden' : ''}`}>{DEMO_NOTE}</p>
+
+          <WalkthroughPanel />
 
           <main id="main" ref={main} tabIndex={-1} className="min-h-0 flex-1 overflow-y-auto">
             {error ? (
@@ -319,5 +328,6 @@ export default function App() {
         ) : null}
       </div>
     </DraftContext.Provider>
+    </WalkthroughProvider>
   )
 }

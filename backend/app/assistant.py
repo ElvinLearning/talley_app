@@ -53,8 +53,8 @@ def integrations():
     return dict(schema_version=1, external_delivery_enabled=False,
                 recorded_events=events["count"], latest_event_at=events["latest"],
                 connections=[
-                    dict(id="ai", name="AI assistance", status="not_connected",
-                         description="Historical evidence is available. Generated drafts need a configured model and review workflow."),
+                    dict(id="ai", name="AI estimating", status="not_connected",
+                         description="Saved prices are searchable. The separate AI test page tries models; job-aware estimate drafts and review are not connected yet."),
                     dict(id="accounting", name="Accounting", status="not_connected",
                          description="Approval and project events are recorded locally. No financial records are sent."),
                     dict(id="phone", name="Calls & lead capture", status="not_connected",

@@ -1,5 +1,37 @@
 # Build evidence
 
+## Clickable demo walkthrough — November 16, 2026
+
+Added `#/guide`: 18 office steps and four worker steps with Next/Back, jump links,
+expandable instructions, close/resume/restart and browser-session progress. The
+guide resolves sample records from permission-appropriate APIs, handles absent
+records and retryable failures, and preserves the estimate's unsaved-change guard.
+It never writes business records or automatically sends an AI prompt.
+
+Added administrator-only `GET /api/boards/{id}/field-preview` and a disabled-control
+preview of the actual worker layout. It uses the existing explicit field projection,
+leaves the current session unchanged, and excludes costs and project finances.
+Workers cannot call this office preview endpoint. No schema migration is required.
+
+Guide content describes the current AI model/role/voice test separately from
+historical-data estimating, and identifies pending photos, time/GPS, calls and
+external integrations. The demo guide now records the remaining pricing, workflow,
+team, paperwork, field, AI, phone, integration and launch decisions for Anthony.
+
+Verification: 28 backend tests, 11 frontend unit tests and all 26 browser scenarios
+validated; production build, secret-bundle check and whitespace check passed.
+The first browser run passed 24 scenarios; a test incorrectly expected an unchanged
+field task to render a Save button. Corrected it to assert no save action and disabled
+inputs, expanded both affected scenarios to visit all 18 tour steps, and both reruns
+passed. The existing full customer-to-estimate-to-project-to-worker flow still passes.
+Browser checks use a fresh synthetic scratch database, desktop and iPhone-sized
+Chromium. AI provider endpoints are mocked in tests; no model prompt was sent.
+
+Visually reviewed the guide and field preview at a 390px phone width. Physical phones,
+Safari and Anthony's personal acceptance remain unverified. Existing Starlette/AnyIO
+test-client deprecation warning remains. The live instance remains a shared synthetic
+demo; photo uploads and production access arrangements still need implementation.
+
 ## Release review — November 15, 2026
 
 Reviewed all six office routes (Today, Jobs, Crew, Overview, Project boards,

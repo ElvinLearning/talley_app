@@ -359,6 +359,20 @@ def work_get(board_id: int, user=Depends(current_user)):
     with closing(connect()) as conn:
         return work_detail(conn,board_id,user)
 
+@router.get("/boards/{board_id}/field-preview", dependencies=[Depends(admin)])
+def field_preview(board_id: int):
+    """Read-only projection for the office tour; never switches the session role."""
+    with closing(connect()) as conn:
+        require(conn, "boards", board_id)
+        worker = conn.execute("""SELECT u.id,u.name,u.role,u.team_id FROM users u
+            JOIN board_assignments a ON a.user_id=u.id
+            WHERE a.board_id=? AND u.role='worker' ORDER BY u.id LIMIT 1""", (board_id,)).fetchone()
+        # With no assigned worker, show all tasks read-only, with none owned. No identity
+        # or permission is granted; this endpoint is always administrator-only.
+        person = dict(worker) if worker else dict(id=-1, role="admin", team_id=None)
+        return dict(job=work_detail(conn, board_id, person),
+                    worker_name=worker["name"] if worker else None, read_only=True)
+
 class FieldUpdate(StrictModel):
     status: Literal["not_started","in_progress","blocked","review","done"]
     notes: str = Field(max_length=5000)
